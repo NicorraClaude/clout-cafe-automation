@@ -1,0 +1,15 @@
+ASUNTO: Última consulta — {{nombre_lugar}}
+[RESPONDER AL MISMO HILO]
+
+---
+
+{{nombre_contacto}}, este es mi último mensaje para no saturarte.
+
+Si en algún momento querés explorar un proveedor de café diferente — o comparar calidad y precio — vas a saber dónde encontrarme.
+
+Una sola pregunta antes de cerrar: ¿hay algo que hoy te impide probar un café nuevo en {{nombre_lugar}}? Precio, logística, exclusividad de marca... Me ayuda saberlo.
+
+Gracias por el tiempo.
+
+Belén · Clout Café
+cafeclout@gmail.com · wa.me/5491163729303

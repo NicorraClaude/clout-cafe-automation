@@ -1,0 +1,26 @@
+ASUNTO: Café de especialidad para {{nombre_lugar}} — precios mayoristas
+
+---
+
+Hola {{nombre_contacto}},
+
+Te escribo porque me parece que el café que servís en {{nombre_lugar}} puede ser una oportunidad de mejora — o si ya están con un proveedor, quizás te interesa comparar calidad y precio.
+
+Soy Belén, de Clout Café. Somos un tostadero artesanal de Buenos Aires. Tostamos en lotes pequeños y entregamos en la misma semana, así siempre llega fresco.
+
+Manejamos tres líneas:
+
+☕ Brasil Natural Caramel (espresso y drip) — desde $30.000/kg
+☕ Colombia Castillo de especialidad — desde $45.000/kg
+☕ Blend comercial Paraná — desde $18.500/kg
+
+Los precios varían según el volumen semanal. Sin mínimo excluyente para arrancar.
+
+Si te interesa probar antes de comprometerte a un pedido regular, te puedo mandar muestras sin cargo la semana que viene.
+
+¿Tenés 5 minutos para charlar por WhatsApp?
+
+Belén
+Clout Café
+wa.me/5491163729303
+cafeclout@gmail.com
