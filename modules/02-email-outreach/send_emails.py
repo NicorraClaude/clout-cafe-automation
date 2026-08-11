@@ -278,12 +278,13 @@ def update_lead(lead_id: str, email_num: int, msg_id: str | None):
     cur.close(); conn.close()
 
 
-def run(email_num: int = 1, dry_run: bool = False):
+def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
     """
-    email_num: 1 = inicial, 2 = follow-up 1, 3 = follow-up 2
-    dry_run:   True = simular sin enviar
+    email_num:   1 = inicial, 2 = follow-up 1, 3 = follow-up 2
+    dry_run:     True = simular sin enviar
+    force_hours: True = ignorar chequeo de horario (para GitHub Actions)
     """
-    if not is_business_hours() and not dry_run:
+    if not force_hours and not is_business_hours() and not dry_run:
         print("⏰ Fuera de horario comercial (L-V 09:00-17:00 ART). Abortando.")
         return
 

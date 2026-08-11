@@ -25,21 +25,32 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Crear archivo .env desde secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASS: ${{ secrets.SUPABASE_DB_PASS }}
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
+          HUNTER_API_KEY: ${{ secrets.HUNTER_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
-          cat > .env << 'EOF'
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_DB_HOST=${{ secrets.SUPABASE_DB_HOST }}
-          SUPABASE_DB_PORT=${{ secrets.SUPABASE_DB_PORT }}
-          SUPABASE_DB_USER=${{ secrets.SUPABASE_DB_USER }}
-          SUPABASE_DB_PASS=${{ secrets.SUPABASE_DB_PASS }}
-          APOLLO_API_KEY=${{ secrets.APOLLO_API_KEY }}
-          HUNTER_API_KEY=${{ secrets.HUNTER_API_KEY }}
-          GMAIL_USER=${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD=${{ secrets.GMAIL_APP_PASSWORD }}
-          GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
-          EOF
+          printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL" >> .env
+          printf 'SUPABASE_SERVICE_KEY=%s\n' "$SUPABASE_SERVICE_KEY" >> .env
+          printf 'SUPABASE_ANON_KEY=%s\n' "$SUPABASE_ANON_KEY" >> .env
+          printf 'SUPABASE_DB_HOST=%s\n' "$SUPABASE_DB_HOST" >> .env
+          printf 'SUPABASE_DB_PORT=%s\n' "$SUPABASE_DB_PORT" >> .env
+          printf 'SUPABASE_DB_USER=%s\n' "$SUPABASE_DB_USER" >> .env
+          printf 'SUPABASE_DB_PASS=%s\n' "$SUPABASE_DB_PASS" >> .env
+          printf 'APOLLO_API_KEY=%s\n' "$APOLLO_API_KEY" >> .env
+          printf 'HUNTER_API_KEY=%s\n' "$HUNTER_API_KEY" >> .env
+          printf 'GMAIL_USER=%s\n' "$GMAIL_USER" >> .env
+          printf 'GMAIL_APP_PASSWORD=%s\n' "$GMAIL_APP_PASSWORD" >> .env
+          printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env
 
       - name: Crear carpeta de logs
         run: mkdir -p logs
@@ -47,7 +58,7 @@ jobs:
       # Envío de emails — máximo 10 min, prioridad máxima
       - name: Enviar emails
         timeout-minutes: 10
-        run: python run.py --emails-only
+        run: python run.py --emails-only --force-hours
 
       # Scraper de leads — hasta 12 min, no bloquea emails
       - name: Buscar nuevos leads

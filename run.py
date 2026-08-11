@@ -24,7 +24,7 @@ def load_module(path: str, name: str):
     return mod
 
 
-def run_emails(dry_run: bool = False):
+def run_emails(dry_run: bool = False, force_hours: bool = False):
     print("\n[1] Encolando leads nuevos...")
     try:
         enqueue = load_module("modules/02-email-outreach/enqueue_leads.py", "enqueue_leads")
@@ -42,15 +42,15 @@ def run_emails(dry_run: bool = False):
     print("\n[3] Enviando follow-ups (email #2 y #3)...")
     try:
         send = load_module("modules/02-email-outreach/send_emails.py", "send_emails")
-        send.run(email_num=3, dry_run=dry_run)
-        send.run(email_num=2, dry_run=dry_run)
+        send.run(email_num=3, dry_run=dry_run, force_hours=force_hours)
+        send.run(email_num=2, dry_run=dry_run, force_hours=force_hours)
     except Exception as e:
         print(f"  Follow-up error: {e}")
 
     print("\n[4] Enviando emails iniciales (email #1)...")
     try:
         send = load_module("modules/02-email-outreach/send_emails.py", "send_emails")
-        send.run(email_num=1, dry_run=dry_run)
+        send.run(email_num=1, dry_run=dry_run, force_hours=force_hours)
     except Exception as e:
         print(f"  Email inicial error: {e}")
 
@@ -99,8 +99,9 @@ def main(dry_run: bool = False):
 
 if __name__ == "__main__":
     dry = "--dry" in sys.argv
+    force = "--force-hours" in sys.argv
     if "--emails-only" in sys.argv:
-        run_emails(dry_run=dry)
+        run_emails(dry_run=dry, force_hours=force)
     elif "--scrape-only" in sys.argv:
         run_scrape()
     else:
