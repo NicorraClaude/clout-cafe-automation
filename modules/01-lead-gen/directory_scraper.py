@@ -131,6 +131,22 @@ def fetch(url: str, method: str = "GET", data: bytes = None, timeout: int = 15,
         return r.read()
 
 
+# Dominios de ejemplo que quedan en plantillas de sitios web sin completar
+DOMINIOS_FALSOS = {
+    "abc.xyz", "example.com", "example.org", "dominio.com", "tudominio.com",
+    "email.com", "correo.com", "test.com", "sitio.com", "midominio.com",
+    "domain.com", "yourdomain.com", "empresa.com",
+}
+
+# Casillas que nunca deciden una compra de café
+CASILLAS_INUTILES = {
+    "rrhh", "recursoshumanos", "empleos", "cv", "curriculum", "postulaciones",
+    "trabajaconnosotros", "prensa", "lectores", "suscripciones", "webmaster",
+    "abuse", "postmaster", "soporte", "sistemas", "noreply", "no-reply",
+    "unsubscribe", "newsletter",
+}
+
+
 def valid_email(email: str) -> bool:
     if IMAGE_EXT.search(email):
         return False
@@ -149,6 +165,12 @@ def valid_email(email: str) -> bool:
     if len(tld) < 2 or len(tld) > 6 or not tld.isalpha():
         return False
     if any(d in domain.lower() for d in SKIP_DOMAINS):
+        return False
+    # Dominios de ejemplo/placeholder que aparecen en plantillas de sitios web
+    if domain.lower() in DOMINIOS_FALSOS:
+        return False
+    # Casillas que nunca deciden una compra de café (RRHH, prensa, sistemas)
+    if local.lower().split("+")[0] in CASILLAS_INUTILES:
         return False
     # Local part can't look like a filename (contain @ before an extension)
     if re.search(r'[@x]\d+\.(png|jpg|svg|webp)', local.lower()):
