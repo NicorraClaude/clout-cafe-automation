@@ -31,6 +31,8 @@ jobs:
           SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_DB_HOST=${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT=${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_USER=${{ secrets.SUPABASE_DB_USER }}
           SUPABASE_DB_PASS=${{ secrets.SUPABASE_DB_PASS }}
           APOLLO_API_KEY=${{ secrets.APOLLO_API_KEY }}
           HUNTER_API_KEY=${{ secrets.HUNTER_API_KEY }}

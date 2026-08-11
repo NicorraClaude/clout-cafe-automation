@@ -196,8 +196,8 @@ def extract_email_from_website(url: str) -> str | None:
 
 def db_conn():
     return psycopg2.connect(
-        host=DB_HOST, port=5432, dbname="postgres",
-        user="postgres", password=DB_PASS, sslmode="require"
+        host=os.environ.get("SUPABASE_DB_HOST", DB_HOST), port=int(os.environ.get("SUPABASE_DB_PORT", 5432)), dbname="postgres",
+        user=os.environ.get("SUPABASE_DB_USER", "postgres"), password=DB_PASS, sslmode="require"
     )
 
 

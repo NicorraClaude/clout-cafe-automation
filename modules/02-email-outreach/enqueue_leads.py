@@ -5,8 +5,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 
 def db_conn():
     return psycopg2.connect(
-        host=os.environ["SUPABASE_DB_HOST"], port=5432, dbname="postgres",
-        user="postgres", password=os.environ["SUPABASE_DB_PASS"], sslmode="require"
+        host=os.environ["SUPABASE_DB_HOST"], port=int(os.environ.get("SUPABASE_DB_PORT", 5432)), dbname="postgres",
+        user=os.environ.get("SUPABASE_DB_USER", "postgres"), password=os.environ["SUPABASE_DB_PASS"], sslmode="require"
     )
 
 def run(limit: int = 50):
