@@ -156,9 +156,38 @@ def valid_email(email: str) -> bool:
     return True
 
 
-def is_competitor(nombre: str) -> bool:
-    nombre_lower = nombre.lower()
-    return any(kw in nombre_lower for kw in COMPETITOR_KEYWORDS)
+# Marcas que tuestan y venden su propio café: nunca nos van a comprar.
+# OJO: una cafetería que COMPRA café sí es cliente — no agregar cafeterías acá.
+MARCAS_COMPETIDORAS = (
+    "cafemartinez", "café martínez", "cafe martinez",
+    "thecoffeestore", "the coffee store",
+    "bonafide", "cabrales", "la virginia", "lavirginia",
+    "nespresso", "illy", "lavazza", "juan valdez", "juanvaldez",
+    "starbucks", "havanna café", "segafredo", "dolce gusto",
+)
+
+# Señales de que el negocio tuesta su propio café (no lo compra)
+SENALES_TOSTADERO = (
+    "roaster", "roasters", "roastery", "coffee roast",
+    "tostadero", "tostaduria", "tostaduría", "torrefacción", "torrefaccion",
+    "venta mayorista", "ventamayorista", "distribuidora de cafe",
+    "distribuidora de café", "cafe de especialidad", "café de especialidad",
+)
+
+
+def is_competitor(nombre: str, email: str = "") -> bool:
+    """
+    True si el negocio vende café (competidor), no si lo compra (cliente).
+
+    Se evalúa nombre Y email: 'ventamayorista@cafemartinez.com.ar' delata al
+    competidor aunque el nombre del lugar suene neutro.
+    """
+    texto = f"{nombre} {email}".lower()
+    if any(kw in texto for kw in COMPETITOR_KEYWORDS):
+        return True
+    if any(m in texto for m in MARCAS_COMPETIDORAS):
+        return True
+    return any(s in texto for s in SENALES_TOSTADERO)
 
 
 def extract_email_from_website(url: str) -> str | None:
@@ -205,7 +234,8 @@ def insert_lead(nombre: str, email: str, rubro: str, fuente: str,
                 ciudad: str, barrio: str | None, provincia: str) -> bool:
     if not valid_email(email):
         return False
-    if is_competitor(nombre):
+    # Se evalúan nombre y email juntos — el dominio suele delatar al competidor
+    if is_competitor(nombre, email):
         return False
 
     conn = db_conn()
