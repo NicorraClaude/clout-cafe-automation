@@ -226,6 +226,12 @@ def insert_lead(nombre: str, email: str, rubro: str, fuente: str,
         cur.close(); conn.close()
 
 
+OVERPASS_MIRRORS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.osm.jp/api/interpreter",
+]
+
 OSM_RUBROS = [
     ("restaurante", 'amenity"="restaurant'),
     ("bar",         'amenity"="bar'),
@@ -239,7 +245,7 @@ def scrape_osm_location(display_name: str, provincia: str, bbox: str) -> int:
     total = 0
 
     for rubro, osm_tag in OSM_RUBROS:
-        query = f"""[out:json][timeout:60];
+        query = f"""[out:json][timeout:25];
 (
   node["{osm_tag}"]["website"]({bbox});
   way["{osm_tag}"]["website"]({bbox});
@@ -247,9 +253,17 @@ def scrape_osm_location(display_name: str, provincia: str, bbox: str) -> int:
 out tags;"""
         try:
             data_enc = urllib.parse.urlencode({"data": query}).encode()
-            raw = fetch("https://overpass.kumi.systems/api/interpreter",
-                        method="POST", data=data_enc, timeout=70,
-                        content_type="application/x-www-form-urlencoded")
+            # Probar varios mirrors — el primero que responda gana
+            raw = None
+            for mirror in OVERPASS_MIRRORS:
+                try:
+                    raw = fetch(mirror, method="POST", data=data_enc, timeout=30,
+                                content_type="application/x-www-form-urlencoded")
+                    break
+                except Exception:
+                    continue
+            if raw is None:
+                raise RuntimeError("todos los mirrors de Overpass fallaron")
             elements = json.loads(raw).get("elements", [])
 
             for el in elements:

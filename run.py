@@ -78,7 +78,7 @@ def run_scrape():
         dirs = load_module("modules/01-lead-gen/directory_scraper.py", "directory_scraper")
         day_of_year = datetime.date.today().timetuple().tm_yday
         all_locs = dirs.ALL_LOCATIONS
-        batch_size = 8
+        batch_size = 4
         start = (day_of_year * batch_size) % len(all_locs)
         batch = (all_locs + all_locs)[start:start + batch_size]
         print(f"  Procesando zonas {start+1}-{start+batch_size} de {len(all_locs)}: {[b[0] for b in batch]}")
