@@ -196,31 +196,49 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
     conn = db_conn()
     cur = conn.cursor()
 
+    # Empresas donde ALGUIEN ya respondió: no se contacta a nadie más de ahí.
+    # Última línea de defensa por si la detección de respuestas falló.
+    NO_CONTACTAR_DOMINIO = """
+        AND lower(split_part(l.email, '@', 2)) NOT IN (
+            SELECT lower(split_part(email, '@', 2)) FROM leads
+            WHERE (estado = 'respondio' OR respondio_at IS NOT NULL)
+              AND email IS NOT NULL
+              AND lower(split_part(email, '@', 2)) NOT IN (
+                  'gmail.com','hotmail.com','outlook.com','yahoo.com','yahoo.com.ar',
+                  'live.com','icloud.com','me.com','aol.com','protonmail.com',
+                  'hotmail.com.ar','outlook.com.ar','yahoo.es'
+              )
+        )
+    """
+
     if email_num == 1:
-        cur.execute("""
-            SELECT id, nombre_contacto, nombre_lugar, email, rubro, thread_id
-            FROM leads WHERE estado = 'encolado'
-            ORDER BY created_at LIMIT %s
+        cur.execute(f"""
+            SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
+            FROM leads l WHERE l.estado = 'encolado'
+              {NO_CONTACTAR_DOMINIO}
+            ORDER BY l.created_at LIMIT %s
         """, (limit,))
     elif email_num == 2:
         # respondio_at IS NULL: red de seguridad extra por si check_replies falló
         # y el estado quedó desactualizado. Nunca follow-up a quien ya contestó.
-        cur.execute("""
-            SELECT id, nombre_contacto, nombre_lugar, email, rubro, thread_id
-            FROM leads
-            WHERE estado = 'email_1_enviado'
-              AND email_1_at < now() - interval '4 days'
-              AND respondio_at IS NULL
-            ORDER BY email_1_at LIMIT %s
+        cur.execute(f"""
+            SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
+            FROM leads l
+            WHERE l.estado = 'email_1_enviado'
+              AND l.email_1_at < now() - interval '4 days'
+              AND l.respondio_at IS NULL
+              {NO_CONTACTAR_DOMINIO}
+            ORDER BY l.email_1_at LIMIT %s
         """, (limit,))
     elif email_num == 3:
-        cur.execute("""
-            SELECT id, nombre_contacto, nombre_lugar, email, rubro, thread_id
-            FROM leads
-            WHERE estado = 'email_2_enviado'
-              AND email_2_at < now() - interval '5 days'
-              AND respondio_at IS NULL
-            ORDER BY email_2_at LIMIT %s
+        cur.execute(f"""
+            SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
+            FROM leads l
+            WHERE l.estado = 'email_2_enviado'
+              AND l.email_2_at < now() - interval '5 days'
+              AND l.respondio_at IS NULL
+              {NO_CONTACTAR_DOMINIO}
+            ORDER BY l.email_2_at LIMIT %s
         """, (limit,))
 
     rows = cur.fetchall()
