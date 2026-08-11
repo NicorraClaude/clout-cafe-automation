@@ -174,6 +174,19 @@ def emails_sent_today() -> int:
     return count
 
 
+def followups_sent_today() -> int:
+    """Follow-ups (email #2 y #3) ya enviados hoy — para respetar su tope propio."""
+    conn = db_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM email_logs
+        WHERE enviado_at::date = %s AND email_num > 1
+    """, (datetime.date.today(),))
+    count = cur.fetchone()[0]
+    cur.close(); conn.close()
+    return count
+
+
 def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
     """
     email_num=1 → estado='encolado'
@@ -301,8 +314,14 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
 
     # Los follow-ups no pueden comerse todo el cupo: se les reserva como máximo
     # MAX_FOLLOWUPS_PER_DAY para que siempre queden lugares para prospectos nuevos.
+    # Se descuentan los follow-ups ya enviados hoy (puede haber corridas previas).
     if email_num > 1:
-        remaining = min(remaining, MAX_FOLLOWUPS_PER_DAY)
+        fu_restantes = MAX_FOLLOWUPS_PER_DAY - followups_sent_today()
+        if fu_restantes <= 0 and not dry_run:
+            print(f"📭 Tope de follow-ups alcanzado ({MAX_FOLLOWUPS_PER_DAY}/día). "
+                  f"El cupo restante queda para prospectos nuevos.")
+            return
+        remaining = min(remaining, fu_restantes)
 
     limit  = min(remaining, MAX_PER_DAY) if not dry_run else 5
     leads  = get_leads_to_contact(email_num, limit)
