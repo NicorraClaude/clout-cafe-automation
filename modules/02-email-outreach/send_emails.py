@@ -20,6 +20,7 @@ DB_PASS      = os.environ["SUPABASE_DB_PASS"]
 
 ART = ZoneInfo("America/Argentina/Buenos_Aires")
 MAX_PER_DAY  = 50
+MAX_FOLLOWUPS_PER_DAY = 20   # el resto del cupo queda libre para prospectos nuevos
 DELAY_SECS   = 45   # pausa entre emails para evitar spam scoring
 
 # Rubros que reciben oferta gastronómica (comodato de máquina)
@@ -189,11 +190,14 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
             ORDER BY created_at LIMIT %s
         """, (limit,))
     elif email_num == 2:
+        # respondio_at IS NULL: red de seguridad extra por si check_replies falló
+        # y el estado quedó desactualizado. Nunca follow-up a quien ya contestó.
         cur.execute("""
             SELECT id, nombre_contacto, nombre_lugar, email, rubro, thread_id
             FROM leads
             WHERE estado = 'email_1_enviado'
               AND email_1_at < now() - interval '4 days'
+              AND respondio_at IS NULL
             ORDER BY email_1_at LIMIT %s
         """, (limit,))
     elif email_num == 3:
@@ -202,6 +206,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
             FROM leads
             WHERE estado = 'email_2_enviado'
               AND email_2_at < now() - interval '5 days'
+              AND respondio_at IS NULL
             ORDER BY email_2_at LIMIT %s
         """, (limit,))
 
@@ -293,6 +298,11 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
     if remaining <= 0 and not dry_run:
         print(f"🚫 Límite diario alcanzado ({MAX_PER_DAY}/día). Abortando.")
         return
+
+    # Los follow-ups no pueden comerse todo el cupo: se les reserva como máximo
+    # MAX_FOLLOWUPS_PER_DAY para que siempre queden lugares para prospectos nuevos.
+    if email_num > 1:
+        remaining = min(remaining, MAX_FOLLOWUPS_PER_DAY)
 
     limit  = min(remaining, MAX_PER_DAY) if not dry_run else 5
     leads  = get_leads_to_contact(email_num, limit)
