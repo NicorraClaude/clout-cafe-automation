@@ -79,12 +79,14 @@ def run_scrape():
     try:
         maps = load_module("modules/01-lead-gen/maps_scraper.py", "maps_scraper")
         zonas = maps.ZONAS
-        # 3 zonas por día, rotando: cubre las 65 zonas cada ~3 semanas
-        n = 3
+        # 2 zonas × 4 rubros por día ≈ 45 leads/día, ~USD 81/mes de consumo
+        # de la API de Google (el crédito mensual gratuito es de USD 200).
+        # Subir estos números aumenta leads Y costo: ver cálculo en el README.
+        n = 2
         ini = (day_of_year * n) % len(zonas)
         batch = (zonas + zonas)[ini:ini + n]
         print(f"  Zonas de hoy: {[z[0] for z in batch]}")
-        maps.run(zonas=batch)
+        maps.run(zonas=batch, rubros=maps.RUBROS[:4])
     except Exception as e:
         print(f"  Google Maps error (no crítico): {e}")
 
