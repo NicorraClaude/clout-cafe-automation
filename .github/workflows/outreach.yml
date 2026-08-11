@@ -4,12 +4,12 @@ on:
   schedule:
     # 09:00 ART = 12:00 UTC, lunes a viernes
     - cron: "0 12 * * 1-5"
-  workflow_dispatch:  # permite correrlo manualmente desde GitHub
+  workflow_dispatch:
 
 jobs:
   outreach:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
 
     steps:
       - name: Checkout código
@@ -44,5 +44,13 @@ jobs:
       - name: Crear carpeta de logs
         run: mkdir -p logs
 
-      - name: Correr pipeline
-        run: python run.py
+      # Envío de emails — máximo 10 min, prioridad máxima
+      - name: Enviar emails
+        timeout-minutes: 10
+        run: python run.py --emails-only
+
+      # Scraper de leads — hasta 12 min, no bloquea emails
+      - name: Buscar nuevos leads
+        timeout-minutes: 12
+        continue-on-error: true
+        run: python run.py --scrape-only

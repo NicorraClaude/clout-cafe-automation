@@ -24,48 +24,22 @@ def load_module(path: str, name: str):
     return mod
 
 
-def main(dry_run: bool = False):
-    print("=" * 50)
-    print("CLOUT CAFÉ AUTOMATION — inicio")
-    print("=" * 50)
-
-    print("\n[1/6] Importando leads desde Apollo...")
-    try:
-        apollo = load_module("modules/01-lead-gen/apollo_import.py", "apollo_import")
-        apollo.run(pages=5, max_enrich=50)
-    except Exception as e:
-        print(f"  Apollo error (no crítico): {e}")
-
-    print("\n[2/6] Importando leads desde directorios web (rotación diaria)...")
-    try:
-        import datetime
-        dirs = load_module("modules/01-lead-gen/directory_scraper.py", "directory_scraper")
-        # Cada día procesa un batch diferente de 8 zonas, rotando por día del año
-        day_of_year = datetime.date.today().timetuple().tm_yday
-        all_locs = dirs.ALL_LOCATIONS
-        batch_size = 8
-        start = (day_of_year * batch_size) % len(all_locs)
-        batch = (all_locs + all_locs)[start:start + batch_size]  # wrap around
-        print(f"  Procesando zonas {start+1}-{start+batch_size} de {len(all_locs)}: {[b[0] for b in batch]}")
-        dirs.run(locations=batch)
-    except Exception as e:
-        print(f"  Directory scraper error (no crítico): {e}")
-
-    print("\n[3/6] Encolando leads nuevos...")
+def run_emails(dry_run: bool = False):
+    print("\n[1] Encolando leads nuevos...")
     try:
         enqueue = load_module("modules/02-email-outreach/enqueue_leads.py", "enqueue_leads")
         enqueue.run(limit=100)
     except Exception as e:
         print(f"  Enqueue error (no crítico): {e}")
 
-    print("\n[4/6] Detectando respuestas en inbox...")
+    print("\n[2] Detectando respuestas en inbox...")
     try:
         replies = load_module("modules/03-followups/check_replies.py", "check_replies")
         replies.run()
     except Exception as e:
         print(f"  Gmail IMAP error: {e}")
 
-    print("\n[5/6] Enviando follow-ups (email #2 y #3)...")
+    print("\n[3] Enviando follow-ups (email #2 y #3)...")
     try:
         send = load_module("modules/02-email-outreach/send_emails.py", "send_emails")
         send.run(email_num=3, dry_run=dry_run)
@@ -73,14 +47,14 @@ def main(dry_run: bool = False):
     except Exception as e:
         print(f"  Follow-up error: {e}")
 
-    print("\n[6/6] Enviando emails iniciales (email #1)...")
+    print("\n[4] Enviando emails iniciales (email #1)...")
     try:
         send = load_module("modules/02-email-outreach/send_emails.py", "send_emails")
         send.run(email_num=1, dry_run=dry_run)
     except Exception as e:
         print(f"  Email inicial error: {e}")
 
-    print("\n✅ Ciclo completo.")
+    print("\n✅ Emails completos.")
 
     print("\n[REPORTE]")
     try:
@@ -90,5 +64,44 @@ def main(dry_run: bool = False):
         print(f"  Reporte error: {e}")
 
 
+def run_scrape():
+    print("\n[1] Importando leads desde Apollo...")
+    try:
+        apollo = load_module("modules/01-lead-gen/apollo_import.py", "apollo_import")
+        apollo.run(pages=5, max_enrich=50)
+    except Exception as e:
+        print(f"  Apollo error (no crítico): {e}")
+
+    print("\n[2] Importando leads desde directorios web (rotación diaria)...")
+    try:
+        import datetime
+        dirs = load_module("modules/01-lead-gen/directory_scraper.py", "directory_scraper")
+        day_of_year = datetime.date.today().timetuple().tm_yday
+        all_locs = dirs.ALL_LOCATIONS
+        batch_size = 8
+        start = (day_of_year * batch_size) % len(all_locs)
+        batch = (all_locs + all_locs)[start:start + batch_size]
+        print(f"  Procesando zonas {start+1}-{start+batch_size} de {len(all_locs)}: {[b[0] for b in batch]}")
+        dirs.run(locations=batch)
+    except Exception as e:
+        print(f"  Directory scraper error (no crítico): {e}")
+
+    print("\n✅ Scraping completo.")
+
+
+def main(dry_run: bool = False):
+    print("=" * 50)
+    print("CLOUT CAFÉ AUTOMATION — inicio")
+    print("=" * 50)
+    run_scrape()
+    run_emails(dry_run=dry_run)
+
+
 if __name__ == "__main__":
-    main(dry_run="--dry" in sys.argv)
+    dry = "--dry" in sys.argv
+    if "--emails-only" in sys.argv:
+        run_emails(dry_run=dry)
+    elif "--scrape-only" in sys.argv:
+        run_scrape()
+    else:
+        main(dry_run=dry)
