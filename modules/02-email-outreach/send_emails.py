@@ -22,6 +22,7 @@ ART = ZoneInfo("America/Argentina/Buenos_Aires")
 MAX_PER_DAY  = 50
 MAX_FOLLOWUPS_PER_DAY = 20   # el resto del cupo queda libre para prospectos nuevos
 DELAY_SECS   = 45   # pausa entre emails para evitar spam scoring
+MAX_REINTENTOS = 3  # reintentos ante caída de conexión (no cuenta errores de dirección)
 
 # Rubros que reciben oferta gastronómica (comodato de máquina)
 RUBROS_GASTRO = {"restaurante", "bar", "hotel", "cafe", "catering", "salon_eventos",
@@ -29,6 +30,22 @@ RUBROS_GASTRO = {"restaurante", "bar", "hotel", "cafe", "catering", "salon_event
 
 # Rubros que reciben oferta corporativa (vending)
 RUBROS_CORP = {"empresa_corporativo", "coworking", "oficina"}
+
+
+class ConexionCaida(Exception):
+    """La conexión SMTP se cortó — hay que reconectar, no descartar el lead."""
+
+
+# Fallos que indican conexión rota (no un problema con la dirección destino)
+ERRORES_DE_CONEXION = (
+    smtplib.SMTPServerDisconnected,
+    smtplib.SMTPConnectError,
+    ConnectionResetError,
+    ConnectionAbortedError,
+    BrokenPipeError,
+    TimeoutError,
+    OSError,
+)
 
 
 def is_corp(rubro: str) -> bool:
@@ -154,6 +171,12 @@ def db_conn():
         host=os.environ.get("SUPABASE_DB_HOST", DB_HOST), port=int(os.environ.get("SUPABASE_DB_PORT", 5432)), dbname="postgres",
         user=os.environ.get("SUPABASE_DB_USER", "postgres"), password=DB_PASS, sslmode="require"
     )
+
+
+def conectar_smtp() -> smtplib.SMTP_SSL:
+    smtp = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=45)
+    smtp.login(GMAIL_USER, GMAIL_PASS)
+    return smtp
 
 
 def is_business_hours() -> bool:
@@ -285,6 +308,10 @@ def send_email(lead: dict, email_num: int, smtp: smtplib.SMTP_SSL) -> str | None
     try:
         smtp.sendmail(GMAIL_USER, lead["email"], msg.as_string())
         return msg_id
+    except ERRORES_DE_CONEXION as e:
+        # La conexión murió: no es culpa de este lead. Se propaga para que el
+        # bucle reconecte y lo reintente, en vez de darlo por fallido.
+        raise ConexionCaida(str(e)) from e
     except Exception as e:
         print(f"  ✗ Error enviando a {lead['email']}: {e}")
         return None
@@ -364,20 +391,44 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
     sent_details = []
     failed_details = []
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(GMAIL_USER, GMAIL_PASS)
+    smtp = conectar_smtp()
+    try:
         for lead in leads:
-            print(f"  → {lead['email']} ({lead['nombre_lugar']})...", end=" ")
-            msg_id = send_email(lead, email_num, smtp)
+            print(f"  → {lead['email']} ({lead['nombre_lugar']})...", end=" ", flush=True)
+
+            msg_id = None
+            for intento in range(1, MAX_REINTENTOS + 1):
+                try:
+                    msg_id = send_email(lead, email_num, smtp)
+                    break
+                except ConexionCaida as e:
+                    print(f"\n     ⚠️  Conexión caída ({e}). Reconectando "
+                          f"[{intento}/{MAX_REINTENTOS}]...", flush=True)
+                    try:
+                        smtp.quit()
+                    except Exception:
+                        pass
+                    time.sleep(10 * intento)   # espera creciente
+                    try:
+                        smtp = conectar_smtp()
+                        print("     ✓ Reconectado, reintentando", end=" ", flush=True)
+                    except Exception as e2:
+                        print(f"     ✗ No se pudo reconectar: {e2}", flush=True)
+
             if msg_id:
                 update_lead(lead["id"], email_num, msg_id)
-                print("✓")
+                print("✓", flush=True)
                 sent += 1
                 sent_details.append(lead)
             else:
                 failed += 1
                 failed_details.append(lead)
             time.sleep(DELAY_SECS)
+    finally:
+        try:
+            smtp.quit()
+        except Exception:
+            pass
 
     print(f"\n✅ Enviados: {sent} | Fallidos: {failed}")
 
