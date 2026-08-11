@@ -143,7 +143,7 @@ CASILLAS_INUTILES = {
     "rrhh", "recursoshumanos", "empleos", "cv", "curriculum", "postulaciones",
     "trabajaconnosotros", "prensa", "lectores", "suscripciones", "webmaster",
     "abuse", "postmaster", "soporte", "sistemas", "noreply", "no-reply",
-    "unsubscribe", "newsletter",
+    "unsubscribe", "newsletter", "legales", "legal", "facturacion", "cobranzas",
 }
 
 

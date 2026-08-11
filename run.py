@@ -72,19 +72,33 @@ def run_scrape():
     except Exception as e:
         print(f"  Apollo error (no crítico): {e}")
 
-    print("\n[2] Importando leads desde directorios web (rotación diaria)...")
+    import datetime
+    day_of_year = datetime.date.today().timetuple().tm_yday
+
+    print("\n[2] Importando leads desde Google Maps (rotación diaria)...")
     try:
-        import datetime
+        maps = load_module("modules/01-lead-gen/maps_scraper.py", "maps_scraper")
+        zonas = maps.ZONAS
+        # 3 zonas por día, rotando: cubre las 65 zonas cada ~3 semanas
+        n = 3
+        ini = (day_of_year * n) % len(zonas)
+        batch = (zonas + zonas)[ini:ini + n]
+        print(f"  Zonas de hoy: {[z[0] for z in batch]}")
+        maps.run(zonas=batch)
+    except Exception as e:
+        print(f"  Google Maps error (no crítico): {e}")
+
+    print("\n[3] Importando leads desde OpenStreetMap...")
+    try:
         dirs = load_module("modules/01-lead-gen/directory_scraper.py", "directory_scraper")
-        day_of_year = datetime.date.today().timetuple().tm_yday
         all_locs = dirs.ALL_LOCATIONS
         batch_size = 4
         start = (day_of_year * batch_size) % len(all_locs)
         batch = (all_locs + all_locs)[start:start + batch_size]
-        print(f"  Procesando zonas {start+1}-{start+batch_size} de {len(all_locs)}: {[b[0] for b in batch]}")
+        print(f"  Zonas de hoy: {[b[0] for b in batch]}")
         dirs.run(locations=batch)
     except Exception as e:
-        print(f"  Directory scraper error (no crítico): {e}")
+        print(f"  OpenStreetMap error (no crítico): {e}")
 
     print("\n✅ Scraping completo.")
 
