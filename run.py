@@ -25,6 +25,20 @@ def load_module(path: str, name: str):
 
 
 def run_emails(dry_run: bool = False, force_hours: bool = False):
+    send = load_module("modules/02-email-outreach/send_emails.py", "send_emails")
+
+    # Un solo envío a la vez, aunque se disparen dos runs en paralelo.
+    if not dry_run and not send.adquirir_lock():
+        print("🔒 Ya hay otro envío en curso. Este proceso no envía nada.")
+        return
+
+    try:
+        _run_emails_inner(send, dry_run, force_hours)
+    finally:
+        send.liberar_lock()
+
+
+def _run_emails_inner(send, dry_run: bool, force_hours: bool):
     print("\n[1] Encolando leads nuevos...")
     try:
         enqueue = load_module("modules/02-email-outreach/enqueue_leads.py", "enqueue_leads")
@@ -41,7 +55,6 @@ def run_emails(dry_run: bool = False, force_hours: bool = False):
 
     print("\n[3] Enviando follow-ups (email #2 y #3)...")
     try:
-        send = load_module("modules/02-email-outreach/send_emails.py", "send_emails")
         send.run(email_num=3, dry_run=dry_run, force_hours=force_hours)
         send.run(email_num=2, dry_run=dry_run, force_hours=force_hours)
     except Exception as e:
@@ -49,7 +62,6 @@ def run_emails(dry_run: bool = False, force_hours: bool = False):
 
     print("\n[4] Enviando emails iniciales (email #1)...")
     try:
-        send = load_module("modules/02-email-outreach/send_emails.py", "send_emails")
         send.run(email_num=1, dry_run=dry_run, force_hours=force_hours)
     except Exception as e:
         print(f"  Email inicial error: {e}")

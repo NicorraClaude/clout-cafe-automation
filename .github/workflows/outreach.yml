@@ -9,7 +9,12 @@ on:
 jobs:
   outreach:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 50 emails × 45s de pausa = ~38 min de envío, + 12 del scraper + margen.
+    # Si se cambia MAX_PER_DAY o DELAY_SECS hay que recalcular estos minutos.
+    timeout-minutes: 75
+    concurrency:                 # nunca dos runs a la vez
+      group: outreach-envio
+      cancel-in-progress: false
 
     steps:
       - name: Checkout código
@@ -55,9 +60,9 @@ jobs:
       - name: Crear carpeta de logs
         run: mkdir -p logs
 
-      # Envío de emails — máximo 10 min, prioridad máxima
+      # Envío de emails — 50 emails × 45s ≈ 38 min, con margen para reintentos
       - name: Enviar emails
-        timeout-minutes: 10
+        timeout-minutes: 50
         env:
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
           SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
@@ -65,7 +70,7 @@ jobs:
           SUPABASE_DB_PASS: ${{ secrets.SUPABASE_DB_PASS }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: python run.py --emails-only --force-hours
+        run: python -u run.py --emails-only --force-hours
 
       # Scraper de leads — hasta 12 min, no bloquea emails
       - name: Buscar nuevos leads
@@ -79,4 +84,4 @@ jobs:
           APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
           HUNTER_API_KEY: ${{ secrets.HUNTER_API_KEY }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-        run: python run.py --scrape-only
+        run: python -u run.py --scrape-only

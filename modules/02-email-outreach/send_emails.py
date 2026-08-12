@@ -173,6 +173,47 @@ def db_conn():
     )
 
 
+# ── Candado global de envío ──────────────────────────────────────────────────
+# Impide que dos procesos envíen a la vez. Sin esto, dos schedulers corriendo en
+# paralelo leen el mismo cupo diario, toman los mismos leads y el contacto recibe
+# el email duplicado (pasó el 12/08/2026: 32 duplicados con GitHub + cron local).
+# El candado vive en Postgres, así que funciona aunque los procesos estén en
+# máquinas distintas. Se libera solo al cerrar la conexión (o si el proceso muere).
+LOCK_KEY = 918273645
+
+_lock_conn = None
+
+
+def adquirir_lock() -> bool:
+    """True si tomamos el candado; False si ya hay otro envío en curso."""
+    global _lock_conn
+    try:
+        _lock_conn = db_conn()
+        _lock_conn.autocommit = True
+        cur = _lock_conn.cursor()
+        cur.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_KEY,))
+        obtenido = cur.fetchone()[0]
+        cur.close()
+        if not obtenido:
+            _lock_conn.close()
+            _lock_conn = None
+        return obtenido
+    except Exception as e:
+        print(f"  No se pudo tomar el candado: {e}")
+        _lock_conn = None
+        return False
+
+
+def liberar_lock():
+    global _lock_conn
+    if _lock_conn is not None:
+        try:
+            _lock_conn.close()   # cerrar la sesión libera el candado
+        except Exception:
+            pass
+        _lock_conn = None
+
+
 def conectar_smtp() -> smtplib.SMTP_SSL:
     smtp = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=45)
     smtp.login(GMAIL_USER, GMAIL_PASS)
