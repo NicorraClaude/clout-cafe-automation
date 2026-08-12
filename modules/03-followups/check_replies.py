@@ -169,7 +169,12 @@ def run(days: int = DEFAULT_LOOKBACK_DAYS):
 
     for num in ids:
         try:
-            _, data = mail.fetch(num, "(RFC822)")
+            # BODY.PEEK[HEADER] en lugar de RFC822 por dos razones:
+            # 1. PEEK no marca el mensaje como leído — RFC822 sí, y eso hacía que
+            #    el bot marcara como leídas las respuestas reales de los clientes.
+            # 2. Solo necesitamos cabeceras (In-Reply-To, References, From), no el
+            #    cuerpo: baja de ~0.43s a ~0.1s por mensaje.
+            _, data = mail.fetch(num, "(BODY.PEEK[HEADER])")
             msg = email.message_from_bytes(data[0][1])
         except Exception as e:
             print(f"  (no se pudo leer un mensaje: {e})")

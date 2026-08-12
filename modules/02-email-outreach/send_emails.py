@@ -260,6 +260,16 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
     conn = db_conn()
     cur = conn.cursor()
 
+    # Excluye a quien ya tiene reservado/enviado este mismo email. Sin esto, un
+    # lead cuyo envío falló volvería a ocupar un lugar del cupo todos los días
+    # solo para ser descartado.
+    NO_ENVIADO_AUN = """
+        AND NOT EXISTS (
+            SELECT 1 FROM email_logs el
+            WHERE el.lead_id = l.id AND el.email_num = %(email_num)s
+        )
+    """
+
     # Empresas donde ALGUIEN ya respondió: no se contacta a nadie más de ahí.
     # Última línea de defensa por si la detección de respuestas falló.
     NO_CONTACTAR_DOMINIO = """
@@ -280,8 +290,9 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
             SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
             FROM leads l WHERE l.estado = 'encolado'
               {NO_CONTACTAR_DOMINIO}
-            ORDER BY l.created_at LIMIT %s
-        """, (limit,))
+              {NO_ENVIADO_AUN}
+            ORDER BY l.created_at LIMIT %(limit)s
+        """, {"limit": limit, "email_num": email_num})
     elif email_num == 2:
         # respondio_at IS NULL: red de seguridad extra por si check_replies falló
         # y el estado quedó desactualizado. Nunca follow-up a quien ya contestó.
@@ -292,8 +303,9 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
               AND l.email_1_at < now() - interval '4 days'
               AND l.respondio_at IS NULL
               {NO_CONTACTAR_DOMINIO}
-            ORDER BY l.email_1_at LIMIT %s
-        """, (limit,))
+              {NO_ENVIADO_AUN}
+            ORDER BY l.email_1_at LIMIT %(limit)s
+        """, {"limit": limit, "email_num": email_num})
     elif email_num == 3:
         cur.execute(f"""
             SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
@@ -302,8 +314,13 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
               AND l.email_2_at < now() - interval '5 days'
               AND l.respondio_at IS NULL
               {NO_CONTACTAR_DOMINIO}
-            ORDER BY l.email_2_at LIMIT %s
-        """, (limit,))
+              {NO_ENVIADO_AUN}
+            ORDER BY l.email_2_at LIMIT %(limit)s
+        """, {"limit": limit, "email_num": email_num})
+
+    else:
+        cur.close(); conn.close()
+        raise ValueError(f"email_num inválido: {email_num} (solo 1, 2 o 3)")
 
     rows = cur.fetchall()
     cur.close(); conn.close()
@@ -326,8 +343,88 @@ def render(template: dict, lead: dict) -> tuple[str, str]:
     return subject, body
 
 
-def send_email(lead: dict, email_num: int, smtp: smtplib.SMTP_SSL) -> str | None:
-    """Envía el email y devuelve el Message-ID para trackear el thread."""
+def reservar_envio(lead_id: str, email_num: int, msg_id: str) -> bool:
+    """
+    Reserva el cupo ANTES de enviar, insertando la fila en email_logs.
+
+    email_logs tiene UNIQUE(lead_id, email_num), así que si ya existe la fila la
+    base rechaza el INSERT y devolvemos False: ese contacto ya recibió este email
+    y no se manda de nuevo. Reservar antes de enviar (y no después) es lo que hace
+    que un corte a mitad de camino nunca derive en un duplicado mañana.
+    """
+    conn = None
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO email_logs (lead_id, email_num, gmail_message_id, enviado_at, estado)
+            VALUES (%s, %s, %s, now(), 'enviando')
+            ON CONFLICT (lead_id, email_num) DO NOTHING
+        """, (lead_id, email_num, msg_id))
+        reservado = cur.rowcount > 0
+        conn.commit()
+        cur.close()
+        return reservado
+    except Exception as e:
+        print(f"\n     ✗ No se pudo reservar el envío: {e}")
+        return False        # ante la duda, NO enviar
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+def liberar_reserva(lead_id: str, email_num: int):
+    """Devuelve el cupo cuando el envío falló de forma definitiva (dirección inválida)."""
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM email_logs WHERE lead_id=%s AND email_num=%s AND estado='enviando'",
+                    (lead_id, email_num))
+        conn.commit()
+        cur.close(); conn.close()
+    except Exception as e:
+        print(f"     (no se pudo liberar la reserva: {e})")
+
+
+def confirmar_envio(lead_id: str, email_num: int) -> bool:
+    """Marca la reserva como enviada de verdad. Se reintenta: perderla desincroniza el estado."""
+    for intento in range(3):
+        try:
+            conn = db_conn()
+            cur = conn.cursor()
+            cur.execute("UPDATE email_logs SET estado='enviado' WHERE lead_id=%s AND email_num=%s",
+                        (lead_id, email_num))
+            conn.commit()
+            cur.close(); conn.close()
+            return True
+        except Exception as e:
+            if intento == 2:
+                print(f"     ⚠️  No se pudo confirmar en la base: {e}")
+                return False
+            time.sleep(2 * (intento + 1))
+    return False
+
+
+def conexion_viva(smtp: smtplib.SMTP_SSL) -> bool:
+    """
+    Comprueba que la conexión responde ANTES de enviar.
+
+    Es la diferencia entre reintentar sin riesgo y arriesgar un duplicado: si la
+    conexión ya estaba muerta, no se envió nada y reconectar es seguro. Si en
+    cambio se corta DURANTE el envío, no hay forma de saber si Gmail llegó a
+    aceptar el mensaje, y ahí reintentar es exactamente lo que duplica el email.
+    """
+    try:
+        codigo, _ = smtp.noop()
+        return codigo == 250
+    except Exception:
+        return False
+
+
+def send_email(lead: dict, email_num: int, smtp: smtplib.SMTP_SSL,
+               msg_id: str | None = None) -> str | None:
+    """Envía el email y devuelve el Message-ID para trackear el hilo."""
     templates = get_templates(lead.get("rubro") or "restaurante")
     tmpl = templates[email_num]
     subject, body = render(tmpl, lead)
@@ -336,7 +433,9 @@ def send_email(lead: dict, email_num: int, smtp: smtplib.SMTP_SSL) -> str | None
     msg["From"]    = formataddr(("Belén · Clout Café", GMAIL_USER))
     msg["To"]      = lead["email"]
     msg["Subject"] = subject
-    msg_id = make_msgid(domain="gmail.com")
+    # Se usa el Message-ID de la reserva para que el registro y el email real
+    # tengan el mismo identificador, y así poder rastrear el hilo después.
+    msg_id = msg_id or make_msgid(domain="gmail.com")
     msg["Message-ID"] = msg_id
 
     # Follow-ups van en el mismo hilo
@@ -358,28 +457,54 @@ def send_email(lead: dict, email_num: int, smtp: smtplib.SMTP_SSL) -> str | None
         return None
 
 
-def update_lead(lead_id: str, email_num: int, msg_id: str | None):
-    conn = db_conn()
-    cur = conn.cursor()
-    now = datetime.datetime.now(ART)
+def marcar_fallido(lead_id: str, email_num: int, motivo: str):
+    """
+    La reserva se conserva (para no reintentar) pero queda marcada como fallida,
+    así el panel no la cuenta como enviada.
+    """
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE email_logs SET estado=%s WHERE lead_id=%s AND email_num=%s",
+                    (motivo, lead_id, email_num))
+        conn.commit()
+        cur.close(); conn.close()
+    except Exception as e:
+        print(f"     (no se pudo marcar fallido: {e})")
 
+
+def update_lead(lead_id: str, email_num: int, msg_id: str | None):
+    """
+    Actualiza el estado del lead. La fila de email_logs ya la creó reservar_envio,
+    por eso acá no se inserta nada: hacerlo violaría UNIQUE(lead_id, email_num).
+
+    Se reintenta ante fallos de red: si el estado del lead no se actualiza, el
+    lead sigue figurando como pendiente. La reserva impide que se le reenvíe,
+    pero el estado quedaría desincronizado con la realidad.
+    """
     estado_map = {1: "email_1_enviado", 2: "email_2_enviado", 3: "email_3_enviado"}
     at_col_map = {1: "email_1_at",      2: "email_2_at",      3: "email_3_at"}
+    now = datetime.datetime.now(ART)
 
-    cur.execute(f"""
-        UPDATE leads
-        SET estado = %s, {at_col_map[email_num]} = %s,
-            thread_id = COALESCE(thread_id, %s), updated_at = now()
-        WHERE id = %s
-    """, (estado_map[email_num], now, msg_id, lead_id))
-
-    cur.execute("""
-        INSERT INTO email_logs (lead_id, email_num, gmail_message_id, enviado_at)
-        VALUES (%s, %s, %s, now())
-    """, (lead_id, email_num, msg_id))
-
-    conn.commit()
-    cur.close(); conn.close()
+    for intento in range(3):
+        try:
+            conn = db_conn()
+            cur = conn.cursor()
+            cur.execute(f"""
+                UPDATE leads
+                SET estado = %s, {at_col_map[email_num]} = %s,
+                    thread_id = COALESCE(thread_id, %s), updated_at = now()
+                WHERE id = %s
+            """, (estado_map[email_num], now, msg_id, lead_id))
+            conn.commit()
+            cur.close(); conn.close()
+            return True
+        except Exception as e:
+            if intento == 2:
+                print(f"     ⚠️  No se pudo actualizar el lead: {e}")
+                return False
+            time.sleep(2 * (intento + 1))
+    return False
 
 
 def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
@@ -437,31 +562,53 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
         for lead in leads:
             print(f"  → {lead['email']} ({lead['nombre_lugar']})...", end=" ", flush=True)
 
-            msg_id = None
-            for intento in range(1, MAX_REINTENTOS + 1):
+            # 1. Reservar el cupo. Si ya está tomado, este contacto ya lo recibió.
+            msg_id_previsto = make_msgid(domain="gmail.com")
+            if not reservar_envio(lead["id"], email_num, msg_id_previsto):
+                print("⊘ ya se le había enviado — se omite", flush=True)
+                continue
+
+            # 2. Asegurar conexión sana ANTES de enviar. Reconectar acá es seguro
+            #    porque todavía no se envió nada de este lead.
+            if not conexion_viva(smtp):
+                print("\n     ⚠️  Conexión caída. Reconectando...", end=" ", flush=True)
+                try: smtp.quit()
+                except Exception: pass
                 try:
-                    msg_id = send_email(lead, email_num, smtp)
-                    break
-                except ConexionCaida as e:
-                    print(f"\n     ⚠️  Conexión caída ({e}). Reconectando "
-                          f"[{intento}/{MAX_REINTENTOS}]...", flush=True)
-                    try:
-                        smtp.quit()
-                    except Exception:
-                        pass
-                    time.sleep(10 * intento)   # espera creciente
-                    try:
-                        smtp = conectar_smtp()
-                        print("     ✓ Reconectado, reintentando", end=" ", flush=True)
-                    except Exception as e2:
-                        print(f"     ✗ No se pudo reconectar: {e2}", flush=True)
+                    smtp = conectar_smtp()
+                    print("✓ reconectado", end=" ", flush=True)
+                except Exception as e:
+                    print(f"✗ sin conexión: {e}", flush=True)
+                    liberar_reserva(lead["id"], email_num)
+                    failed += 1
+                    failed_details.append(lead)
+                    time.sleep(DELAY_SECS)
+                    continue
+
+            # 3. Enviar. Si acá se corta, NO se reintenta: no hay forma de saber si
+            #    Gmail aceptó el mensaje, y reintentar es lo que genera duplicados.
+            #    La reserva queda, así que tampoco se reintenta mañana.
+            try:
+                msg_id = send_email(lead, email_num, smtp, msg_id_previsto)
+            except ConexionCaida as e:
+                print(f"\n     ⚠️  Se cortó durante el envío ({e}). No se reintenta "
+                      f"para no duplicar.", flush=True)
+                msg_id = None
+                try: smtp.quit()
+                except Exception: pass
+                try: smtp = conectar_smtp()
+                except Exception: pass
 
             if msg_id:
+                confirmar_envio(lead["id"], email_num)
                 update_lead(lead["id"], email_num, msg_id)
                 print("✓", flush=True)
                 sent += 1
                 sent_details.append(lead)
             else:
+                # La reserva NO se libera: si el corte fue ambiguo, reintentar
+                # mañana podría duplicar. Queda marcada para el panel.
+                marcar_fallido(lead["id"], email_num, "fallido")
                 failed += 1
                 failed_details.append(lead)
             time.sleep(DELAY_SECS)

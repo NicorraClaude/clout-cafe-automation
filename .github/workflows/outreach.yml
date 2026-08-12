@@ -9,9 +9,15 @@ on:
 jobs:
   outreach:
     runs-on: ubuntu-latest
-    # 50 emails × 45s de pausa = ~38 min de envío, + 12 del scraper + margen.
-    # Si se cambia MAX_PER_DAY o DELAY_SECS hay que recalcular estos minutos.
-    timeout-minutes: 75
+    # Presupuesto de tiempo MEDIDO (12/08/2026), no estimado:
+    #   por email: 3 ops de base (1.43s c/u) + NOOP 0.19 + sendmail 0.8 + pausa 45
+    #              = 50.3s  →  50 emails = 41.9 min
+    #   check_replies: 1.9s de login + 0.341s por mensaje del último mes
+    #                  = 0.8 min hoy (128 msgs), 5.7 min con 1000 msgs
+    #   PEOR CASO paso de emails: 47.7 min  →  timeout 60 (margen 12)
+    #   job: 60 + 12 (scraper) + 3 (setup) = 75  →  timeout 90 (margen 15)
+    # Si cambia MAX_PER_DAY o DELAY_SECS en send_emails.py, recalcular acá.
+    timeout-minutes: 90
     concurrency:                 # nunca dos runs a la vez
       group: outreach-envio
       cancel-in-progress: false
@@ -60,9 +66,9 @@ jobs:
       - name: Crear carpeta de logs
         run: mkdir -p logs
 
-      # Envío de emails — 50 emails × 45s ≈ 38 min, con margen para reintentos
+      # Peor caso medido: 47.7 min (ver cuenta en timeout-minutes del job)
       - name: Enviar emails
-        timeout-minutes: 50
+        timeout-minutes: 60
         env:
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
           SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
