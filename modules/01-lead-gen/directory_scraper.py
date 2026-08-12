@@ -27,6 +27,10 @@ SKIP_DOMAINS = {
     "google.com","w3.org","schema.org","jquery.com","cloudflare.com","sentry-cdn.com",
     "maps.google","squarespace.com","mailchimp.com","godaddy.com","shopify.com",
     "wixpress.com","amazonaws.com","noreply","no-reply","donotreply",
+    # Servicios de monitoreo de errores: dejan direcciones tipo
+    # <hash>@sentry-next.wixpress.com incrustadas en el HTML de los sitios
+    "glitchtip.com","sentry-next","bugsnag.com","rollbar.com","datadoghq.com",
+    "newrelic.com","hotjar.com","segment.com","intercom.io","zendesk.com",
 }
 
 # Palabras clave de competidores/tostaderos que NO queremos contactar

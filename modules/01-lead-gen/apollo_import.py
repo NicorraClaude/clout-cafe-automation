@@ -178,7 +178,9 @@ def search_people(segment: dict, page: int = 1, per_page: int = 25) -> dict:
 
 
 def enrich_people(apollo_ids: list[str]) -> list[dict]:
-    """CONSUME 1 crédito Apollo por contacto. Devuelve emails reales."""
+    """CONSUME 1 crédito Apollo por contacto. Devuelve solo emails verificados."""
+    from collections import Counter
+    rechazados = Counter()
     out = []
     for i in range(0, len(apollo_ids), 10):
         chunk = apollo_ids[i:i+10]
@@ -197,6 +199,17 @@ def enrich_people(apollo_ids: list[str]) -> list[dict]:
             email = m.get("email", "")
             if not email or "email_not_unlocked" in email:
                 continue
+
+            # Solo emails que Apollo verificó de verdad.
+            #
+            # Apollo devuelve 'extrapolated' para direcciones que INVENTA a partir
+            # de un patrón (nombre + dominio de la empresa), sin comprobarlas. Esas
+            # son las que rebotan: medido el 12/08/2026, aceptar extrapolados dio
+            # 35% de rebote sobre 130 envíos. Lo sano es menos del 2%.
+            estado_email = (m.get("email_status") or "").lower()
+            if estado_email != "verified":
+                rechazados[estado_email or "sin_dato"] += 1
+                continue
             org = m.get("organization") or {}
             out.append({
                 "apollo_id": m.get("id"),
@@ -206,6 +219,10 @@ def enrich_people(apollo_ids: list[str]) -> list[dict]:
                 "ciudad": "Buenos Aires",
             })
         time.sleep(1)
+
+    if rechazados:
+        detalle = ", ".join(f"{k}: {v}" for k, v in rechazados.most_common())
+        print(f"  Descartados por no estar verificados → {detalle}")
     return out
 
 
