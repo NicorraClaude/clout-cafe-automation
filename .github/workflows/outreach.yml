@@ -78,9 +78,11 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python -u run.py --emails-only --force-hours
 
-      # Scraper de leads — hasta 12 min, no bloquea emails
+      # Scraper de leads. Medido 21/08: con 12 min se CORTABA sin terminar, por
+      # eso traía 25 leads/día en vez de los ~45 esperados.
+      # Presupuesto: job 90 - emails 41.4 - setup 0.3 - margen 23 = 25 min.
       - name: Buscar nuevos leads
-        timeout-minutes: 12
+        timeout-minutes: 25
         continue-on-error: true
         env:
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
