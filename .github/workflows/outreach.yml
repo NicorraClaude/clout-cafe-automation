@@ -49,6 +49,7 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL" >> .env
           printf 'SUPABASE_SERVICE_KEY=%s\n' "$SUPABASE_SERVICE_KEY" >> .env
@@ -62,6 +63,7 @@ jobs:
           printf 'GMAIL_USER=%s\n' "$GMAIL_USER" >> .env
           printf 'GMAIL_APP_PASSWORD=%s\n' "$GMAIL_APP_PASSWORD" >> .env
           printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env
+          printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY" >> .env
 
       - name: Crear carpeta de logs
         run: mkdir -p logs
@@ -76,6 +78,7 @@ jobs:
           SUPABASE_DB_PASS: ${{ secrets.SUPABASE_DB_PASS }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python -u run.py --emails-only --force-hours
 
       # Scraper de leads. Medido 21/08: con 12 min se CORTABA sin terminar, por
