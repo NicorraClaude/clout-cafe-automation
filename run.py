@@ -39,6 +39,23 @@ def run_emails(dry_run: bool = False, force_hours: bool = False):
 
 
 def _run_emails_inner(send, dry_run: bool, force_hours: bool):
+    # Si Gmail rechaza las credenciales no se puede enviar nada. Se corta acá con
+    # error para que la corrida figure como FALLIDA y llegue el aviso: entre el
+    # 21/08 y el 02/09 los runs decian "success" mientras no salia un solo email,
+    # porque el fallo quedaba atrapado en los try/except de cada paso.
+    if not dry_run:
+        import smtplib
+        try:
+            smtp = send.conectar_smtp()
+            smtp.quit()
+        except smtplib.SMTPAuthenticationError as e:
+            raise SystemExit(
+                "\n❌ GMAIL RECHAZA LAS CREDENCIALES — no se envió ningún email.\n"
+                "   La contraseña de aplicación se venció o fue revocada.\n"
+                "   Generar una nueva en myaccount.google.com/apppasswords y\n"
+                "   actualizarla en el secret GMAIL_APP_PASSWORD del repositorio.\n"
+                f"   Detalle: {e}\n")
+
     print("\n[1] Encolando leads nuevos...")
     try:
         enqueue = load_module("modules/02-email-outreach/enqueue_leads.py", "enqueue_leads")
