@@ -130,6 +130,24 @@ los extras, un envío al interior— NO respondas: escalá.
 Ante la más mínima duda, escalá. Es mucho peor mandar un dato equivocado a un
 cliente que demorar la respuesta unas horas.
 
+NO DES POR SENTADA LA SITUACIÓN DEL CLIENTE. Antes de responder, preguntate:
+¿estoy suponiendo algo que el mensaje no dice? Si la respuesta depende de si
+tienen o no una máquina, de cuántas sucursales manejan, de qué consumo tienen o
+de con quién trabajan hoy, y el mensaje no lo aclara sin lugar a dudas, ESCALÁ.
+
+Ejemplo real de un error a evitar: un cliente escribió que "una empresa nos
+provee máquinas Bunn en concesión". Eso significa que NO son dueños de las
+máquinas: se las da un proveedor, y para cambiarse necesitarían que nosotros
+hiciéramos lo mismo. Responder "como ya tienen las máquinas, les vendemos el
+café" es leer al revés y perder el negocio.
+
+ESCALÁ SIEMPRE, sin excepción, cuando:
+· piden que proveamos máquinas, sobre todo si son varias o hay sucursales
+· hoy trabajan con otro proveedor y evalúan cambiarse
+· el pedido no encaja exactamente en alguno de los esquemas de comodato tal
+  como están definidos
+Esas son negociaciones que cierra Nico, no consultas de precio.
+
 También escalá si:
 · quieren cerrar una compra, coordinar una entrega o hablar de un contrato
 · hay un reclamo, una queja o algo que suene delicado
@@ -263,6 +281,50 @@ def enviar(destino: str, asunto: str, cuerpo: str, in_reply_to: str | None = Non
         return False
 
 
+def resumen_de_lo_respondido(respuestas: list[dict]):
+    """
+    Copia a Nico de todo lo que el sistema contestó, con la consulta original
+    al lado.
+
+    No es para que apruebe nada —ya salió— sino para que pueda detectar a tiempo
+    una respuesta mal interpretada y corregirla con el cliente el mismo día.
+    """
+    if not respuestas:
+        return
+    partes = [
+        f"El sistema respondió {len(respuestas)} consulta(s) hoy.",
+        "Si alguna quedó mal, todavía estás a tiempo de escribirle vos.",
+        "",
+    ]
+    for i, r in enumerate(respuestas, 1):
+        partes += [
+            "=" * 62,
+            f"{i}. {r['empresa'] or r['de']}  <{r['de']}>",
+            "=" * 62,
+            "",
+            "LO QUE PREGUNTÓ",
+            r["consulta"][:900].strip(),
+            "",
+            "LO QUE CONTESTÓ EL SISTEMA",
+            r["respuesta"].strip(),
+            "",
+        ]
+    cuerpo = "\n".join(partes)
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = formataddr(("Clout Café · Avisos", GMAIL_USER))
+    msg["To"] = ", ".join(AVISOS_A)
+    msg["Subject"] = f"Respuestas enviadas hoy ({len(respuestas)})"
+    msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=45) as s:
+            s.login(GMAIL_USER, GMAIL_PASS)
+            s.sendmail(GMAIL_USER, AVISOS_A, msg.as_string())
+        print(f"  📋 Resumen de {len(respuestas)} respuestas enviado a Nico")
+    except Exception as e:
+        print(f"  ✗ No se pudo enviar el resumen: {e}")
+
+
 def avisar(de: str, empresa: str, asunto: str, consulta: str, motivo: str):
     """Aviso a Nico cuando el sistema no sabe algo. Va a las dos casillas."""
     cuerpo = f"""Llegó una consulta que el sistema no puede responder solo.
@@ -361,6 +423,7 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
           f"{' [SIMULACIÓN]' if dry_run else ''}")
 
     respondidos = escalados = 0
+    enviadas = []
     for num in ids:
         if respondidos + escalados >= MAX_POR_CORRIDA:
             print(f"  Tope de {MAX_POR_CORRIDA} alcanzado; el resto queda para la próxima.")
@@ -421,6 +484,8 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
                 registrar(msg_id, lead_id, de, asunto, "respondido",
                           respuesta=d["respuesta"])
                 respondidos += 1
+                enviadas.append({"de": de, "empresa": empresa,
+                                 "consulta": consulta, "respuesta": d["respuesta"]})
         else:
             motivo = d.get("motivo", "sin motivo")
             print(f"    ⚠️  escala: {motivo}")
@@ -430,6 +495,8 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
             escalados += 1
 
     m.logout()
+    if not dry_run:
+        resumen_de_lo_respondido(enviadas)
     print(f"\n✅ {respondidos} respondidas · {escalados} escaladas a Nico")
     return respondidos, escalados
 
