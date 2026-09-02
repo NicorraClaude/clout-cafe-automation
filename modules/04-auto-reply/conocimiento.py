@@ -39,10 +39,21 @@ def _pesos(valor) -> str:
     return f"${valor:,.0f}".replace(",", ".") if valor else "—"
 
 
+_cache_filas = None
+
+
+def _filas() -> list[list[str]]:
+    """Baja la planilla una sola vez por ejecución."""
+    global _cache_filas
+    if _cache_filas is None:
+        raw = urllib.request.urlopen(CSV_URL, timeout=30, context=CTX).read().decode("utf-8")
+        _cache_filas = list(csv.reader(io.StringIO(raw)))
+    return _cache_filas
+
+
 def leer_precios() -> list[dict]:
     """Devuelve [{cafe, min250, minkg, maykg}] leyendo solo columnas de venta."""
-    raw = urllib.request.urlopen(CSV_URL, timeout=30, context=CTX).read().decode("utf-8")
-    filas = list(csv.reader(io.StringIO(raw)))
+    filas = _filas()
 
     encabezado = None
     for f in filas:
@@ -83,23 +94,59 @@ def leer_precios() -> list[dict]:
     return salida
 
 
-# Condiciones comerciales. Van acá y no en la planilla porque son texto fijo;
-# si cambian, se editan en este archivo.
-COMODATO = """MÁQUINAS EN COMODATO — dos esquemas:
+def leer_comodato() -> list[dict]:
+    """Esquemas de máquina en comodato, leídos de la planilla."""
+    filas = _filas()
+    inicio = None
+    for i, f in enumerate(filas):
+        if f and f[0].strip().upper().startswith("MAQUINAS COMODATO"):
+            inicio = i + 1
+            break
+    if inicio is None:
+        return []
 
-OFICINAS — máquina Necta Koro (vending automática)
-· Costo de la máquina: $200.000 por mes
-· El café se factura a PRECIO MAYORISTA
-· Consumo mínimo: 15 kg por mes
+    esquemas, tipo_actual = [], ""
+    for f in filas[inicio:]:
+        f = [c.strip() for c in f] + [""] * 6
+        if f[0].upper().startswith("EXTRAS"):
+            break
+        if not any(f[:6]):
+            continue
+        if f[0]:
+            tipo_actual = f[0]
+        if not f[1]:
+            continue
+        esquemas.append({
+            "tipo": tipo_actual,
+            "maquina": f[1],
+            "costo_maquina": f[2],
+            "precio_cafe": f[3],
+            "minimo": f[4],
+            "extras": f[5],
+        })
+    return esquemas
 
-COMERCIOS GASTRONÓMICOS — máquina espresso de 1 o 2 grupos (modelo a definir con el cliente)
-· La máquina va SIN COSTO mensual
-· El café se factura a PRECIO MINORISTA
-· Consumo mínimo: 30 kg por mes
 
-EXTRAS disponibles en ambos esquemas: chocolate en polvo, leche en polvo, azúcar,
-edulcorante, revolvedores y vasos. El precio de los extras NO está definido: si
-preguntan por eso, hay que escalar."""
+def leer_extras() -> list[tuple[str, str]]:
+    """Extras con su precio de venta. Solo nombre y precio: no hay costos acá."""
+    filas = _filas()
+    inicio = None
+    for i, f in enumerate(filas):
+        if f and f[0].strip().upper() == "EXTRAS":
+            inicio = i + 1
+            break
+    if inicio is None:
+        return []
+
+    salida = []
+    for f in filas[inicio:]:
+        f = [c.strip() for c in f] + ["", ""]
+        if not f[0]:
+            continue
+        if f[1]:
+            salida.append((f[0], f[1]))
+    return salida
+
 
 ENVIOS = """ENVÍOS
 · CABA y GBA: sin cargo en compras superiores a $200.000. Por debajo, con costo.
@@ -152,11 +199,41 @@ def armar_contexto() -> str:
         if p["maykg"]:
             partes.append(f"mayorista por kg {_pesos(p['maykg'])}")
         lineas.append(f"· {p['cafe']}: " + " · ".join(partes))
+    # Comodato, tal como está cargado en la planilla
+    lineas += ["", "MÁQUINAS EN COMODATO"]
+    for e in leer_comodato():
+        costo = e["costo_maquina"]
+        costo_txt = ("sin costo mensual" if costo in ("-", "", "0")
+                     else f"{costo} por mes")
+        lineas.append(
+            f"· {e['tipo']} — {e['maquina']}: {costo_txt}. "
+            f"El café se factura a {e['precio_cafe'].lower()}. "
+            f"Consumo mínimo: {e['minimo']}."
+        )
+    lineas.append(
+        "\nCAFÉ FILTRADO / MÁQUINA BUNN — aplica a CUALQUIER cliente, sea oficina "
+        "o comercio gastronómico. El esquema lo define la máquina, no el rubro:\n"
+        "· Si ya tienen la cafetera: les proveemos solo el café molido para "
+        "filtrado, a PRECIO MINORISTA por kg. Sin mínimo ni compromiso.\n"
+        "· Si no la tienen: se les instala una Bunn o industrial de filtrado en "
+        "comodato, SIN COSTO mensual, con un consumo mínimo de 30 kg por mes y "
+        "el café a PRECIO MINORISTA.\n"
+        "· Los filtros Bunn se venden aparte, al precio que figura en extras.\n"
+        "Al recomendar la molienda para este método, es café molido para filtrado."
+    )
+
+    # Extras con precio de venta
+    extras = leer_extras()
+    if extras:
+        lineas += ["", "EXTRAS (precio de venta)"]
+        for nombre, precio in extras:
+            lineas.append(f"· {nombre}: {precio}")
+
     lineas += [
         "",
         "El precio mayorista aplica a comercios y empresas, por volumen.",
         "El kilo rinde bastante más por gramo que los 250 g.",
         "Todos los cafés se despachan en grano entero o molido, al mismo precio.",
-        "", QUE_LES_ESCRIBIMOS, "", COMODATO, "", ENVIOS, "", PAGOS, "", CONTACTO,
+        "", QUE_LES_ESCRIBIMOS, "", ENVIOS, "", PAGOS, "", CONTACTO,
     ]
     return "\n".join(lineas)

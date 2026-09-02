@@ -169,13 +169,36 @@ def tipo_de_cliente(rubro: str | None) -> str:
     return f"OFICINA / EMPRESA (rubro: {rubro}) — recibió la propuesta corporativa"
 
 
+def dias_de_demora(msg) -> int:
+    """Cuántos días pasaron desde que el cliente escribió."""
+    from email.utils import parsedate_to_datetime
+    try:
+        fecha = parsedate_to_datetime(msg.get("Date"))
+        if fecha.tzinfo is None:
+            fecha = fecha.replace(tzinfo=datetime.timezone.utc)
+        return (datetime.datetime.now(datetime.timezone.utc) - fecha).days
+    except Exception:
+        return 0
+
+
 def decidir(consulta: str, de: str, empresa: str, contexto: str,
-            rubro: str | None = None) -> dict:
+            rubro: str | None = None, demora_dias: int = 0) -> dict:
+    # Si la consulta lleva más de una semana sin respuesta, se pide disculpas.
+    # Sin exagerar: una línea al principio y seguir con la respuesta.
+    nota_demora = ""
+    if demora_dias >= 7:
+        nota_demora = (
+            f"\n\nATENCIÓN: esta consulta llegó hace {demora_dias} días y todavía no "
+            "se respondió. Empezá el mail con una disculpa breve y sobria por la "
+            "demora —una sola línea, sin dramatizar ni dar explicaciones— y seguí "
+            "con la respuesta normal."
+        )
     prompt = (
         f"INFORMACIÓN DISPONIBLE (esto es TODO lo que sabés):\n{contexto}\n\n"
         f"---\nConsulta recibida\nDe: {de}\nEmpresa: {empresa or 'sin dato'}\n"
         f"Tipo de cliente: {tipo_de_cliente(rubro)}\n\n"
         f"{consulta[:3000]}"
+        + nota_demora
     )
     cuerpo = json.dumps({
         "model": MODELO,
@@ -369,11 +392,14 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
         if len(consulta) < 5:
             continue
 
-        print(f"\n  → {empresa or de} <{de}>")
+        demora = dias_de_demora(msg)
+        etiqueta = f"  ({demora} días sin responder)" if demora >= 7 else ""
+        print(f"\n  → {empresa or de} <{de}>{etiqueta}")
         print(f"    {consulta[:110].replace(chr(10), ' ')}...")
 
         try:
-            d = decidir(consulta, de, empresa, contexto, rubro)
+            d = decidir(consulta, de, empresa, contexto, rubro,
+                        dias_de_demora(msg))
         except SinCredito as e:
             # Sin crédito no se puede responder ninguna: se corta y se avisa.
             print("    ✗ Sin crédito de Claude — se detienen las respuestas")
