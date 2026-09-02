@@ -211,6 +211,25 @@ def armar_contexto() -> str:
             f"Consumo mínimo: {e['minimo']}."
         )
     lineas.append(
+        "\nCÓMO SE OFRECE LA MÁQUINA (regla comercial)\n"
+        "Se incluye UNA máquina sin costo por cada 30 kg de consumo mensual. Si "
+        "el cliente necesita más máquinas de las que le habilita su volumen, cada "
+        "máquina adicional son $200.000 por mes.\n"
+        "Ejemplo de cómo decirlo: «te mantengo $X por kg y te incluyo la máquina "
+        "con cada 30 kg mensuales; si necesitás alguna más, te la agrego por "
+        "$200.000 al mes».\n"
+        "A quien NO tiene máquina conviene entrarle con el precio más competitivo "
+        "que tengamos, porque ahí se define si nos prueban o no."
+    )
+    lineas.append(
+        "\nCÓMO HABLAR DE LOS PRECIOS\n"
+        "«Precio minorista» y «precio mayorista» son etiquetas internas: NUNCA se "
+        "las nombres al cliente. Decí el número y qué incluye, en tono comercial y "
+        "personalizado. En vez de «el café va a precio minorista», decí «te lo "
+        "mantengo en $X el kilo». Hablás de plata que el cliente paga, no de "
+        "categorías de nuestra planilla."
+    )
+    lineas.append(
         "\nCAFÉ FILTRADO / MÁQUINA BUNN — aplica a CUALQUIER cliente, sea oficina "
         "o comercio gastronómico. El esquema lo define la máquina, no el rubro:\n"
         "· Si ya tienen la cafetera: les proveemos solo el café molido para "

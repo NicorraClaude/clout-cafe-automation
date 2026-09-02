@@ -162,6 +162,10 @@ También escalá si:
 
 NUNCA menciones costos internos, márgenes ni cuánto nos cuesta el café.
 
+NUNCA uses las palabras "precio minorista" ni "precio mayorista" con el cliente:
+son etiquetas de nuestra planilla interna. Decí el número y qué incluye, como lo
+diría un vendedor: "te lo mantengo en $X el kilo", no "va a precio minorista".
+
 Si la persona dice que no le interesa o que ya tiene proveedor: agradecé en una
 línea, dejá la puerta abierta y no insistas. Eso se responde, no se escala.
 
@@ -325,8 +329,63 @@ def resumen_de_lo_respondido(respuestas: list[dict]):
         print(f"  ✗ No se pudo enviar el resumen: {e}")
 
 
-def avisar(de: str, empresa: str, asunto: str, consulta: str, motivo: str):
+BORRADOR = """Escribí un borrador de respuesta para que Nico lo revise y lo mande él.
+
+No sale automáticamente: lo va a leer una persona que conoce el negocio y lo va
+a ajustar. Podés proponer condiciones y números, pero marcá entre [corchetes]
+todo lo que estés suponiendo o que Nico tenga que definir.
+
+RELEÉ EL MENSAJE ANTES DE ESCRIBIR. No des por sentada la situación del cliente:
+si dice que otro proveedor le da las máquinas, NO tiene máquinas propias. Si algo
+no queda claro, ponelo entre [corchetes] en vez de inventarlo.
+
+CÓMO SE OFRECE LA MÁQUINA: una sin costo por cada 30 kg de consumo mensual. Las
+que excedan ese volumen, $200.000 por mes cada una.
+
+NUNCA digas "precio minorista" ni "precio mayorista": son etiquetas internas.
+Decí el número y qué incluye, como un vendedor: "te lo mantengo en $X el kilo".
+
+Tono rioplatense, directo y comercial. Texto plano, sin asteriscos ni markdown.
+Firmá siempre así:
+
+Belén · Clout Café
+wa.me/5491163729303
+
+Devolvé SOLO el texto del email, sin asunto ni comentarios alrededor."""
+
+
+def redactar_borrador(consulta: str, de: str, empresa: str, contexto: str,
+                      rubro: str | None) -> str:
+    """Propuesta de respuesta para las consultas que escalan."""
+    prompt = (
+        f"INFORMACIÓN DISPONIBLE:\n{contexto}\n\n---\nConsulta de {de}"
+        f" ({empresa or 'sin dato'})\nTipo de cliente: {tipo_de_cliente(rubro)}\n\n"
+        f"{consulta[:3000]}"
+    )
+    cuerpo = json.dumps({
+        "model": MODELO, "max_tokens": 900, "system": BORRADOR,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages", data=cuerpo,
+        headers={"x-api-key": CLAUDE_KEY, "anthropic-version": "2023-06-01",
+                 "content-type": "application/json"})
+    try:
+        resp = json.load(urllib.request.urlopen(req, timeout=90, context=CTX))
+        return "".join(b.get("text", "") for b in resp.get("content", [])).strip()
+    except Exception:
+        return ""
+
+
+def avisar(de: str, empresa: str, asunto: str, consulta: str, motivo: str,
+           borrador: str = ""):
     """Aviso a Nico cuando el sistema no sabe algo. Va a las dos casillas."""
+    bloque_borrador = ""
+    if borrador:
+        bloque_borrador = (
+            f"\n\nBORRADOR SUGERIDO (revisalo antes de mandarlo)\n"
+            f"{'-' * 55}\n{borrador}\n{'-' * 55}\n"
+        )
     cuerpo = f"""Llegó una consulta que el sistema no puede responder solo.
 
 POR QUÉ NO LA RESPONDIÓ
@@ -341,7 +400,7 @@ ASUNTO
 CONSULTA
 {'-' * 55}
 {consulta[:2500]}
-{'-' * 55}
+{'-' * 55}{bloque_borrador}
 
 Respondé directamente desde cafeclout@gmail.com: el mensaje original está en la
 bandeja. El sistema no le contestó nada a esta persona.
@@ -490,7 +549,8 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
             motivo = d.get("motivo", "sin motivo")
             print(f"    ⚠️  escala: {motivo}")
             if not dry_run:
-                avisar(de, empresa, asunto, consulta, motivo)
+                borrador = redactar_borrador(consulta, de, empresa, contexto, rubro)
+                avisar(de, empresa, asunto, consulta, motivo, borrador)
                 registrar(msg_id, lead_id, de, asunto, "escalado", motivo)
             escalados += 1
 
