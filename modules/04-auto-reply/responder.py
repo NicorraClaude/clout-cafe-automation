@@ -47,6 +47,18 @@ ASUNTOS_A_IGNORAR = (
 )
 
 
+class SinCredito(Exception):
+    """Anthropic rechazó la consulta por falta de crédito."""
+
+
+def _cargar_alertas():
+    ruta = os.path.join(os.path.dirname(__file__), "alertas.py")
+    spec = importlib.util.spec_from_file_location("_ale", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def db_conn():
     return psycopg2.connect(
         host=os.environ["SUPABASE_DB_HOST"],
@@ -161,7 +173,14 @@ def decidir(consulta: str, de: str, empresa: str, contexto: str) -> dict:
         headers={"x-api-key": CLAUDE_KEY, "anthropic-version": "2023-06-01",
                  "content-type": "application/json"},
     )
-    resp = json.load(urllib.request.urlopen(req, timeout=90, context=CTX))
+    try:
+        resp = json.load(urllib.request.urlopen(req, timeout=90, context=CTX))
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode("utf-8", errors="ignore")[:500]
+        # Anthropic devuelve 400 con "credit balance is too low" cuando se acaba
+        if "credit balance" in detalle.lower() or "insufficient" in detalle.lower():
+            raise SinCredito(detalle) from e
+        raise
     texto = "".join(b.get("text", "") for b in resp.get("content", []))
 
     m = re.search(r"\{.*\}", texto, re.S)
@@ -337,6 +356,11 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
 
         try:
             d = decidir(consulta, de, empresa, contexto)
+        except SinCredito as e:
+            # Sin crédito no se puede responder ninguna: se corta y se avisa.
+            print("    ✗ Sin crédito de Claude — se detienen las respuestas")
+            _cargar_alertas().sin_credito_claude(str(e))
+            break
         except Exception as e:
             d = {"accion": "escalar", "motivo": f"error al consultar el modelo: {e}"}
 

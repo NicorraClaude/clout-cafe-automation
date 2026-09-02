@@ -49,6 +49,8 @@ def _run_emails_inner(send, dry_run: bool, force_hours: bool):
             smtp = send.conectar_smtp()
             smtp.quit()
         except smtplib.SMTPAuthenticationError as e:
+            # No se puede avisar por mail desde esta misma cuenta, así que el
+            # aviso queda en el log y GitHub notifica la corrida fallida.
             raise SystemExit(
                 "\n❌ GMAIL RECHAZA LAS CREDENCIALES — no se envió ningún email.\n"
                 "   La contraseña de aplicación se venció o fue revocada.\n"
@@ -91,6 +93,18 @@ def _run_emails_inner(send, dry_run: bool, force_hours: bool):
         print(f"  Email inicial error: {e}")
 
     print("\n✅ Emails completos.")
+
+    # Avisar si la cola de prospectos se está agotando
+    try:
+        alertas = load_module("modules/04-auto-reply/alertas.py", "alertas")
+        conn = alertas.db_conn(); cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM leads WHERE estado IN ('nuevo','encolado')")
+        quedan = cur.fetchone()[0]
+        cur.close(); conn.close()
+        if quedan < 150:          # menos de 5 días de envíos
+            alertas.cola_vacia(quedan)
+    except Exception as e:
+        print(f"  Chequeo de cola error: {e}")
 
     print("\n[REPORTE]")
     try:
