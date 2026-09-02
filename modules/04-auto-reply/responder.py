@@ -265,7 +265,15 @@ def decidir(consulta: str, de: str, empresa: str, contexto: str,
 
 # ── Envío ────────────────────────────────────────────────────────────────────
 
-def enviar(destino: str, asunto: str, cuerpo: str, in_reply_to: str | None = None) -> bool:
+def enviar(destino: str, asunto: str, cuerpo: str, in_reply_to: str | None = None,
+           referencias: str = "") -> bool:
+    """
+    Envía la respuesta dentro del hilo original.
+
+    Gmail agrupa la conversación por las cabeceras In-Reply-To y References, y
+    guarda solo una copia en Enviados. Para el cliente y para Nico el mail se ve
+    como cualquier respuesta escrita a mano desde la casilla.
+    """
     msg = MIMEMultipart("alternative")
     msg["From"] = formataddr(("Belén · Clout Café", GMAIL_USER))
     msg["To"] = destino
@@ -273,7 +281,10 @@ def enviar(destino: str, asunto: str, cuerpo: str, in_reply_to: str | None = Non
     msg["Message-ID"] = make_msgid(domain="gmail.com")
     if in_reply_to:
         msg["In-Reply-To"] = in_reply_to
-        msg["References"] = in_reply_to
+        # La cadena completa, no solo el mensaje anterior: si el hilo ya tenía
+        # idas y vueltas, sin esto Gmail lo puede separar en dos conversaciones.
+        cadena = f"{referencias} {in_reply_to}".strip() if referencias else in_reply_to
+        msg["References"] = cadena
     msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=45) as s:
@@ -454,6 +465,29 @@ def hay_que_ignorar(de: str, asunto: str) -> str | None:
     return None
 
 
+ETIQUETA_GMAIL = "Respondido automatico"
+
+
+def marcar_en_gmail(imap, num, respondido: bool):
+    """
+    Deja la marca en el mensaje del cliente para que Nico lo ubique.
+
+    · Leído: el sistema ya se ocupó, no queda como pendiente.
+    · Estrella: para que salte a la vista y pueda darle seguimiento.
+    · Etiqueta: permite filtrar después todo lo que contestó el sistema.
+
+    Si algo de esto falla no se corta el proceso: son marcas de organización,
+    el mail al cliente ya salió igual.
+    """
+    try:
+        imap.store(num, "+FLAGS", "\\Seen")
+        imap.store(num, "+FLAGS", "\\Flagged")
+        etiqueta = ETIQUETA_GMAIL if respondido else f"{ETIQUETA_GMAIL}/Para responder"
+        imap.store(num, "+X-GM-LABELS", f'"{etiqueta}"')
+    except Exception as e:
+        print(f"    (no se pudo marcar en Gmail: {e})")
+
+
 def leads_por_email() -> dict:
     conn = db_conn(); cur = conn.cursor()
     cur.execute("""SELECT lower(email), id, nombre_lugar, rubro
@@ -539,10 +573,12 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
             print(f"    ✓ responde: {d['respuesta'][:90].replace(chr(10),' ')}...")
             if dry_run:
                 respondidos += 1
-            elif enviar(de, asunto, d["respuesta"], msg_id):
+            elif enviar(de, asunto, d["respuesta"], msg_id,
+                        msg.get("References", "")):
                 registrar(msg_id, lead_id, de, asunto, "respondido",
                           respuesta=d["respuesta"])
                 respondidos += 1
+                marcar_en_gmail(m, num, respondido=True)
                 enviadas.append({"de": de, "empresa": empresa,
                                  "consulta": consulta, "respuesta": d["respuesta"]})
         else:
@@ -552,6 +588,9 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
                 borrador = redactar_borrador(consulta, de, empresa, contexto, rubro)
                 avisar(de, empresa, asunto, consulta, motivo, borrador)
                 registrar(msg_id, lead_id, de, asunto, "escalado", motivo)
+                # Las escaladas quedan SIN leer a propósito: las tiene que
+                # contestar una persona, así que deben seguir pendientes.
+                marcar_en_gmail(m, num, respondido=False)
             escalados += 1
 
     m.logout()
