@@ -115,6 +115,30 @@ CONTACTO = """CONTACTO
 WhatsApp 11 6372-9303 · cafeclout@gmail.com · Instagram @clout.cafe · clout.ar"""
 
 
+# Lo que decían los emails que enviamos. Sin esto, el sistema no entiende
+# preguntas como "¿cuánto sale la opción B?" y las escala aunque sepa la
+# respuesta: pasó con dos prospectos que estaban pidiendo precio.
+QUE_LES_ESCRIBIMOS = """QUÉ DECÍA EL EMAIL QUE LE MANDAMOS A ESTA PERSONA
+
+A todos se les ofrecieron DOS opciones. Según el rubro, así:
+
+A COMERCIOS GASTRONÓMICOS (bares, restaurantes, cafeterías, hoteles, panaderías):
+· OPCIÓN A — SOLO EL CAFÉ: si ya tienen máquina, les proveemos el café, de
+  especialidad o comercial. Entrega semanal, tostado fresco. A mayor volumen,
+  mejor precio.
+· OPCIÓN B — MÁQUINA EN COMODATO + CAFÉ: comprando 30 kg o más por mes,
+  instalamos una máquina de espresso sin costo adicional. Solo pagan el café.
+
+A OFICINAS Y EMPRESAS (corporativo, coworking):
+· OPCIÓN A — SOLO EL CAFÉ: si ya tienen máquina, café de especialidad o
+  comercial a precio mayorista, tostado fresco y entrega directa.
+· OPCIÓN B — SERVICIO DE VENDING COMPLETO: instalamos una máquina de espresso
+  automática, la mantenemos y reponemos el café cada semana.
+
+Si preguntan por "la opción A" o "la opción B", se refieren a esto. Respondé con
+los precios y condiciones que figuran más arriba, según el tipo de cliente."""
+
+
 def armar_contexto() -> str:
     """Texto con todo lo que el sistema sabe. Lo que no está acá, se escala."""
     precios = leer_precios()
@@ -133,6 +157,6 @@ def armar_contexto() -> str:
         "El precio mayorista aplica a comercios y empresas, por volumen.",
         "El kilo rinde bastante más por gramo que los 250 g.",
         "Todos los cafés se despachan en grano entero o molido, al mismo precio.",
-        "", COMODATO, "", ENVIOS, "", PAGOS, "", CONTACTO,
+        "", QUE_LES_ESCRIBIMOS, "", COMODATO, "", ENVIOS, "", PAGOS, "", CONTACTO,
     ]
     return "\n".join(lineas)

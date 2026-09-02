@@ -154,10 +154,27 @@ o
 {"accion": "escalar", "motivo": "en una línea, qué dato falta o por qué no podés"}"""
 
 
-def decidir(consulta: str, de: str, empresa: str, contexto: str) -> dict:
+# Rubros que reciben la propuesta gastronómica; el resto, la corporativa.
+RUBROS_GASTRO = {"restaurante", "bar", "hotel", "cafe", "catering", "salon_eventos",
+                 "club", "museo_cultura", "panaderia", "gimnasio", "clinica_salud",
+                 "educacion"}
+
+
+def tipo_de_cliente(rubro: str | None) -> str:
+    """Determina qué versión de la propuesta recibió, para poder responder por ella."""
+    if not rubro:
+        return "sin dato — si la respuesta depende del rubro, escalá"
+    if rubro in RUBROS_GASTRO:
+        return f"COMERCIO GASTRONÓMICO (rubro: {rubro}) — recibió la propuesta gastronómica"
+    return f"OFICINA / EMPRESA (rubro: {rubro}) — recibió la propuesta corporativa"
+
+
+def decidir(consulta: str, de: str, empresa: str, contexto: str,
+            rubro: str | None = None) -> dict:
     prompt = (
         f"INFORMACIÓN DISPONIBLE (esto es TODO lo que sabés):\n{contexto}\n\n"
-        f"---\nConsulta recibida\nDe: {de}\nEmpresa: {empresa or 'sin dato'}\n\n"
+        f"---\nConsulta recibida\nDe: {de}\nEmpresa: {empresa or 'sin dato'}\n"
+        f"Tipo de cliente: {tipo_de_cliente(rubro)}\n\n"
         f"{consulta[:3000]}"
     )
     cuerpo = json.dumps({
@@ -290,8 +307,9 @@ def hay_que_ignorar(de: str, asunto: str) -> str | None:
 
 def leads_por_email() -> dict:
     conn = db_conn(); cur = conn.cursor()
-    cur.execute("SELECT lower(email), id, nombre_lugar FROM leads WHERE email IS NOT NULL")
-    d = {e: (str(i), n) for e, i, n in cur.fetchall()}
+    cur.execute("""SELECT lower(email), id, nombre_lugar, rubro
+                   FROM leads WHERE email IS NOT NULL""")
+    d = {e: (str(i), n, r) for e, i, n, r in cur.fetchall()}
     cur.close(); conn.close()
     return d
 
@@ -336,7 +354,7 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
         lead = conocidos.get(de.lower())
         if not lead:
             continue
-        lead_id, empresa = lead
+        lead_id, empresa, rubro = lead
 
         motivo_ignorar = hay_que_ignorar(de_crudo, asunto)
         if motivo_ignorar:
@@ -355,7 +373,7 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
         print(f"    {consulta[:110].replace(chr(10), ' ')}...")
 
         try:
-            d = decidir(consulta, de, empresa, contexto)
+            d = decidir(consulta, de, empresa, contexto, rubro)
         except SinCredito as e:
             # Sin crédito no se puede responder ninguna: se corta y se avisa.
             print("    ✗ Sin crédito de Claude — se detienen las respuestas")
@@ -366,11 +384,12 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
 
         if d.get("accion") == "responder":
             print(f"    ✓ responde: {d['respuesta'][:90].replace(chr(10),' ')}...")
-            if not dry_run:
-                if enviar(de, asunto, d["respuesta"], msg_id):
-                    registrar(msg_id, lead_id, de, asunto, "respondido",
-                              respuesta=d["respuesta"])
-                    respondidos += 1
+            if dry_run:
+                respondidos += 1
+            elif enviar(de, asunto, d["respuesta"], msg_id):
+                registrar(msg_id, lead_id, de, asunto, "respondido",
+                          respuesta=d["respuesta"])
+                respondidos += 1
         else:
             motivo = d.get("motivo", "sin motivo")
             print(f"    ⚠️  escala: {motivo}")
