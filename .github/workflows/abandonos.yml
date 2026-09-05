@@ -1,0 +1,31 @@
+name: Carritos abandonados
+
+# Cada 3 horas. El cron de Vercel no sirve acá: en el plan Hobby solo permite
+# una ejecución diaria, y un carrito abandonado conviene detectarlo el mismo día
+# para que el contacto siga tibio.
+on:
+  schedule:
+    - cron: "0 */3 * * *"
+  workflow_dispatch:
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Buscar checkouts sin pagar
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          respuesta=$(curl -sS --max-time 60 -w "\n%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://clout.ar/api/abandonos)
+          codigo=$(echo "$respuesta" | tail -1)
+          cuerpo=$(echo "$respuesta" | sed '$d')
+          echo "HTTP $codigo — $cuerpo"
+          # Un fallo acá tiene que verse: si el endpoint deja de responder,
+          # dejaríamos de enterarnos de las ventas que se caen.
+          if [ "$codigo" != "200" ]; then
+            echo "::error::El endpoint de abandonos devolvió $codigo"
+            exit 1
+          fi
