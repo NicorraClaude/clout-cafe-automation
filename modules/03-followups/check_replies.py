@@ -5,7 +5,8 @@ Ejecutar cada hora via cron.
 """
 
 import os, imaplib, email, psycopg2, datetime
-from email.header import decode_header
+from email.header import decode_header, make_header
+from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
@@ -78,14 +79,42 @@ def es_rebote(remitente: str, asunto: str) -> bool:
     ))
 
 
-def mark_bounced(lead_id: str):
-    """Email inválido — se descarta para no seguir gastando envíos en él."""
+def fecha_del_mensaje(msg) -> datetime.datetime:
+    """Fecha del header Date; si falta o viene rota, ahora."""
+    try:
+        f = parsedate_to_datetime(msg.get("Date", ""))
+        if f.tzinfo is None:
+            f = f.replace(tzinfo=datetime.timezone.utc)
+        return f
+    except Exception:
+        return datetime.datetime.now(datetime.timezone.utc)
+
+
+def asunto_legible(asunto: str) -> str:
+    """Decodifica asuntos tipo =?UTF-8?...?= para guardarlos legibles."""
+    try:
+        return str(make_header(decode_header(asunto or "")))
+    except Exception:
+        return asunto or ""
+
+
+def mark_bounced(lead_id: str, fecha: datetime.datetime | None = None, motivo: str = ""):
+    """
+    Email inválido — se descarta para no seguir gastando envíos en él.
+
+    También deja registrado que fue un rebote (cuándo y por qué), para poder
+    medir la calidad de las listas. Si ya tenía un rebote registrado, no se pisa.
+    """
+    fecha  = fecha or datetime.datetime.now(datetime.timezone.utc)
+    motivo = (motivo or "rebote")[:200]
     conn = db_conn()
     cur = conn.cursor()
     cur.execute("""
-        UPDATE leads SET estado = 'descartado', updated_at = now()
+        UPDATE leads SET estado = 'descartado', updated_at = now(),
+               rebote_motivo = CASE WHEN rebote_at IS NULL THEN %s ELSE rebote_motivo END,
+               rebote_at     = COALESCE(rebote_at, %s)
         WHERE id = %s AND estado NOT IN ('respondio', 'cliente', 'descartado')
-    """, (lead_id,))
+    """, (motivo, fecha, lead_id))
     conn.commit()
     cur.close(); conn.close()
 
@@ -203,7 +232,7 @@ def run(days: int = DEFAULT_LOOKBACK_DAYS):
             asunto = msg.get("Subject", "")
             if es_rebote(remitente, asunto):
                 print(f"  ✗ REBOTE — email inválido, se descarta el lead")
-                mark_bounced(lead_id)
+                mark_bounced(lead_id, fecha_del_mensaje(msg), asunto_legible(asunto))
                 bounced += 1
             else:
                 print(f"  ✓ Respuesta de {remitente[:45]} ({via}) — {fecha[:31]}")

@@ -4,7 +4,7 @@ Envía emails desde cafeclout@gmail.com a leads en estado 'encolado'.
 Respeta límite de 50/día, solo L-V 09:00-17:00 ART.
 """
 
-import os, smtplib, time, psycopg2, datetime
+import os, re, html, smtplib, time, psycopg2, datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr, make_msgid
@@ -343,6 +343,38 @@ def render(template: dict, lead: dict) -> tuple[str, str]:
     return subject, body
 
 
+# ── Versión HTML con links medidos ───────────────────────────────────────────
+# El texto plano sale igual que siempre. Además se adjunta una versión HTML con
+# el mismo cuerpo, donde clout.ar y el WhatsApp pasan por clout.ar/r/... para
+# saber qué lead hizo clic y en qué email (lo registra la web en email_clicks).
+# Sin imágenes ni píxel de seguimiento: solo los links.
+BASE_REDIRECT = "https://clout.ar/r/{lead_id}/{email_num}?a={destino}"
+
+# Un solo patrón con las tres menciones, así un reemplazo nunca se vuelve a
+# procesar. clout.ar tiene que ser palabra suelta (no parte de otro dominio).
+PATRON_LINKS = re.compile(
+    r"(?P<mail>cafeclout@gmail\.com)"
+    r"|(?P<wa>wa\.me/5491163729303)"
+    r"|(?P<web>(?<![\w@./-])clout\.ar(?![\w/-]))"
+)
+
+
+def render_html(body: str, lead_id, email_num: int) -> str:
+    """Convierte el cuerpo de texto plano en HTML simple con los links medidos."""
+    texto = html.escape(body)
+
+    def _link(m: re.Match) -> str:
+        if m.group("mail"):
+            return f'<a href="mailto:{m.group(0)}">{m.group(0)}</a>'
+        destino = "wa" if m.group("wa") else "web"
+        url = BASE_REDIRECT.format(lead_id=lead_id, email_num=email_num, destino=destino)
+        return f'<a href="{html.escape(url)}">{m.group(0)}</a>'
+
+    texto = PATRON_LINKS.sub(_link, texto).replace("\n", "<br>\n")
+    return ('<div style="font-family: Arial, sans-serif; font-size: 14px; color: #111;">\n'
+            f"{texto}\n</div>")
+
+
 def reservar_envio(lead_id: str, email_num: int, msg_id: str) -> bool:
     """
     Reserva el cupo ANTES de enviar, insertando la fila en email_logs.
@@ -443,7 +475,10 @@ def send_email(lead: dict, email_num: int, smtp: smtplib.SMTP_SSL,
         msg["In-Reply-To"] = lead["thread_id"]
         msg["References"]  = lead["thread_id"]
 
+    # Orden importa: el cliente muestra la última parte que sabe leer (HTML) y
+    # usa el texto plano como respaldo.
     msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(render_html(body, lead["id"], email_num), "html", "utf-8"))
 
     try:
         smtp.sendmail(GMAIL_USER, lead["email"], msg.as_string())
@@ -551,6 +586,8 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
             print(f"\n  → {lead['email']} ({lead['nombre_lugar']}) [{lead.get('rubro','')}]")
             print(f"     Asunto: {subj}")
             print(f"     Primeras líneas: {body[:80].strip()}...")
+            html_body = render_html(body, lead["id"], email_num)
+            print(f"     HTML: {html_body.count('clout.ar/r/')} links medidos")
         return
 
     sent = failed = 0
