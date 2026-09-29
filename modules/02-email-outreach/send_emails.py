@@ -52,6 +52,15 @@ def is_corp(rubro: str) -> bool:
     return rubro in RUBROS_CORP
 
 
+# ── Firma ────────────────────────────────────────────────────────────────────
+# Una sola firma para todos los emails: se escribe acá y las plantillas la
+# insertan con {firma}. En el HTML, "WhatsApp" y "clout.ar" van como links
+# (medidos); el texto plano, que es el respaldo, muestra la dirección entera.
+FIRMA = """Belén · Clout Café
+WhatsApp: wa.me/5491163729303
+clout.ar"""
+
+
 TEMPLATES_GASTRO = {
     1: {
         "subject": "Café de especialidad y comercial para {nombre_lugar} — dos opciones sin vueltas",
@@ -71,9 +80,7 @@ Comprando 30 kg o más por mes, instalamos una máquina de espresso sin costo ad
 
 En clout.ar vas a poder ver las opciones disponibles. Si alguna te interesa, podemos hablar 5 minutos para adaptar la propuesta a lo que necesiten y contarte sobre los precios mayoristas.
 
-Belén · Clout Café
-wa.me/5491163729303
-cafeclout@gmail.com""",
+{firma}""",
     },
     2: {
         "subject": "Re: Clout Café — propuesta para {nombre_lugar}",
@@ -88,19 +95,17 @@ No cobramos lo que no vale. Si hoy están pagando más por menos calidad, tiene 
 
 Puedo mandar muestras sin cargo para que lo prueben antes de decidir cualquier cosa.
 
-Belén · Clout Café
-wa.me/5491163729303""",
+{firma}""",
     },
     3: {
         "subject": "Última consulta — {nombre_lugar}",
-        "body": """{nombre_contacto}, este es mi último mensaje para no saturarte.
+        "body": """{nombre_contacto}, no quiero molestarte, así que este es mi último mensaje.
 
 Si en algún momento quieren optimizar el café — ya sea bajando costos, mejorando la calidad, o ambas — saben dónde encontrarnos.
 
 Una sola pregunta antes de cerrar: ¿qué es lo que hoy les frena para cambiar de proveedor? Precio, logística, la máquina actual... Me ayuda saberlo.
 
-Belén · Clout Café
-cafeclout@gmail.com · wa.me/5491163729303""",
+{firma}""",
     },
 }
 
@@ -125,9 +130,7 @@ En nuestra web vas a poder ver todas las opciones disponibles y los precios de r
 
 Si alguna opción te interesa, podemos hablar 5 minutos y nos adaptamos a lo que necesiten.
 
-Belén · Clout Café
-wa.me/5491163729303
-cafeclout@gmail.com""",
+{firma}""",
     },
     2: {
         "subject": "Re: Café para {nombre_lugar} — retomo la propuesta",
@@ -142,19 +145,17 @@ La diferencia respecto al proveedor actual: café tostado en Buenos Aires esa se
 
 ¿Charlamos?
 
-Belén · Clout Café
-wa.me/5491163729303""",
+{firma}""",
     },
     3: {
         "subject": "Última consulta — {nombre_lugar}",
-        "body": """{nombre_contacto}, este es mi último mensaje.
+        "body": """{nombre_contacto}, no quiero molestarte, así que este es mi último mensaje.
 
 Si en algún momento buscan optimizar el café de {nombre_lugar} — mejor calidad, menor costo, o las dos — ya saben dónde estamos.
 
 Antes de cerrar: ¿cómo resuelven hoy el café en la oficina? Me ayuda para la próxima propuesta.
 
-Belén · Clout Café
-cafeclout@gmail.com · wa.me/5491163729303""",
+{firma}""",
     },
 }
 
@@ -337,6 +338,7 @@ def render(template: dict, lead: dict) -> tuple[str, str]:
         "nombre_contacto": (lead["nombre_contacto"] or "equipo").split()[0].capitalize(),
         "nombre_lugar": lead["nombre_lugar"],
         "rubro": lead["rubro"] or "negocio",
+        "firma": FIRMA,
     }
     subject = template["subject"].format(**ctx)
     body    = template["body"].format(**ctx)
@@ -359,9 +361,18 @@ PATRON_LINKS = re.compile(
 )
 
 
+def firma_html(lead_id, email_num: int) -> str:
+    """La firma con los links puestos sobre las palabras, sin direcciones a la vista."""
+    wa = BASE_REDIRECT.format(lead_id=lead_id, email_num=email_num, destino="wa")
+    web = BASE_REDIRECT.format(lead_id=lead_id, email_num=email_num, destino="web")
+    return (f'Belén · Clout Café<br>\n<a href="{html.escape(wa)}">WhatsApp</a><br>\n'
+            f'<a href="{html.escape(web)}">clout.ar</a>')
+
+
 def render_html(body: str, lead_id, email_num: int) -> str:
     """Convierte el cuerpo de texto plano en HTML simple con los links medidos."""
-    texto = html.escape(body)
+    cuerpo, hay_firma, _ = body.partition(FIRMA)
+    texto = html.escape(cuerpo)
 
     def _link(m: re.Match) -> str:
         if m.group("mail"):
@@ -371,6 +382,8 @@ def render_html(body: str, lead_id, email_num: int) -> str:
         return f'<a href="{html.escape(url)}">{m.group(0)}</a>'
 
     texto = PATRON_LINKS.sub(_link, texto).replace("\n", "<br>\n")
+    if hay_firma:
+        texto += firma_html(lead_id, email_num)
     return ('<div style="font-family: Arial, sans-serif; font-size: 14px; color: #111;">\n'
             f"{texto}\n</div>")
 
