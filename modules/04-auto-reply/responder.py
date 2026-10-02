@@ -175,8 +175,21 @@ a robot ni a vendedor. Respuestas cortas: 2 a 5 líneas. Firmá siempre:
 Belén · Clout Café
 wa.me/5491163729303
 
+NOS PASAN OTRO CONTACTO. Si la persona que contesta nos deriva a otra —"escribile
+a compras@empresa.com", "hablá con Juan, te paso el mail", "yo no me encargo,
+mandáselo a..."— devolvé la acción "derivar" con esa dirección. Agregá también
+dos líneas para contestarle a quien nos la pasó: agradecer y avisar que le
+escribimos.
+
+Para que sea una derivación, la persona nos tiene que estar pasando el contacto.
+Una dirección que aparece en la firma, en un pie de página, en un texto legal o
+citada de otro mail NO es una derivación. Si no queda clarísimo, escalá. Si nos
+pasa más de un contacto, escalá.
+
 Devolvé SOLO un objeto JSON, sin nada alrededor:
 {"accion": "responder", "respuesta": "el texto del email"}
+o
+{"accion": "derivar", "email": "la dirección que nos pasaron", "nombre": "el nombre si lo dijo, o null", "respuesta": "las dos líneas para quien nos la pasó"}
 o
 {"accion": "escalar", "motivo": "en una línea, qué dato falta o por qué no podés"}"""
 
@@ -296,7 +309,15 @@ def enviar(destino: str, asunto: str, cuerpo: str, in_reply_to: str | None = Non
         return False
 
 
-def resumen_de_lo_respondido(respuestas: list[dict]):
+def _derivaciones():
+    ruta = os.path.join(os.path.dirname(__file__), "derivaciones.py")
+    spec = importlib.util.spec_from_file_location("_der", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def resumen_de_lo_respondido(respuestas: list[dict], derivadas: list[dict] | None = None):
     """
     Copia a Nico de todo lo que el sistema contestó, con la consulta original
     al lado.
@@ -304,13 +325,27 @@ def resumen_de_lo_respondido(respuestas: list[dict]):
     No es para que apruebe nada —ya salió— sino para que pueda detectar a tiempo
     una respuesta mal interpretada y corregirla con el cliente el mismo día.
     """
-    if not respuestas:
+    derivadas = derivadas or []
+    if not respuestas and not derivadas:
         return
     partes = [
         f"El sistema respondió {len(respuestas)} consulta(s) hoy.",
         "Si alguna quedó mal, todavía estás a tiempo de escribirle vos.",
         "",
     ]
+    for dv in derivadas:
+        partes += [
+            "=" * 62,
+            f"CONTACTO DERIVADO · {dv['empresa'] or dv['de']}",
+            "=" * 62,
+            "",
+            f"{dv['de']} nos pasó el contacto de {dv['contacto']}.",
+            f"{dv['detalle']}.",
+            "",
+            "LO QUE ESCRIBIÓ",
+            dv["consulta"][:600].strip(),
+            "",
+        ]
     for i, r in enumerate(respuestas, 1):
         partes += [
             "=" * 62,
@@ -329,7 +364,8 @@ def resumen_de_lo_respondido(respuestas: list[dict]):
     msg = MIMEMultipart("alternative")
     msg["From"] = formataddr(("Clout Café · Avisos", GMAIL_USER))
     msg["To"] = ", ".join(AVISOS_A)
-    msg["Subject"] = f"Respuestas enviadas hoy ({len(respuestas)})"
+    msg["Subject"] = (f"Respuestas enviadas hoy ({len(respuestas)})"
+                      + (f" y {len(derivadas)} contacto(s) derivado(s)" if derivadas else ""))
     msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=45) as s:
@@ -489,10 +525,18 @@ def marcar_en_gmail(imap, num, respondido: bool):
 
 
 def leads_por_email() -> dict:
+    """Los datos del lead que escribe. Van completos porque, si nos deriva a un
+    colega, el contacto nuevo hereda el comercio, el rubro y la zona."""
+    campos = ["id", "nombre_contacto", "nombre_lugar", "email", "rubro",
+              "barrio", "ciudad", "provincia"]
     conn = db_conn(); cur = conn.cursor()
-    cur.execute("""SELECT lower(email), id, nombre_lugar, rubro
-                   FROM leads WHERE email IS NOT NULL""")
-    d = {e: (str(i), n, r) for e, i, n, r in cur.fetchall()}
+    cur.execute(f"""SELECT lower(email), {", ".join(campos)}
+                    FROM leads WHERE email IS NOT NULL""")
+    d = {}
+    for fila in cur.fetchall():
+        lead = dict(zip(campos, fila[1:]))
+        lead["id"] = str(lead["id"])
+        d[fila[0]] = lead
     cur.close(); conn.close()
     return d
 
@@ -517,6 +561,7 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
 
     respondidos = escalados = 0
     enviadas = []
+    derivadas = []
     for num in ids:
         if respondidos + escalados >= MAX_POR_CORRIDA:
             print(f"  Tope de {MAX_POR_CORRIDA} alcanzado; el resto queda para la próxima.")
@@ -538,7 +583,7 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
         lead = conocidos.get(de.lower())
         if not lead:
             continue
-        lead_id, empresa, rubro = lead
+        lead_id, empresa, rubro = lead["id"], lead["nombre_lugar"], lead["rubro"]
 
         motivo_ignorar = hay_que_ignorar(de_crudo, asunto)
         if motivo_ignorar:
@@ -569,7 +614,39 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
         except Exception as e:
             d = {"accion": "escalar", "motivo": f"error al consultar el modelo: {e}"}
 
-        if d.get("accion") == "responder":
+        if d.get("accion") == "derivar":
+            direccion = (d.get("email") or "").strip()
+            nombre_nuevo = (d.get("nombre") or "").strip() or None
+            print(f"    ↪ nos pasan otro contacto: {direccion or '(vacío)'}")
+            conn = db_conn()
+            try:
+                ok, detalle = _derivaciones().derivar(conn, direccion, nombre_nuevo, lead, dry_run)
+            finally:
+                conn.close()
+            print(f"      {'✓' if ok else '✗'} {detalle}")
+            if ok and not dry_run:
+                # Y se le contesta a quien nos pasó el dato, en el mismo hilo.
+                gracias = d.get("respuesta") or (
+                    f"Gracias, {(lead.get('nombre_contacto') or '').split(' ')[0]}. Le escribo ahora mismo.\n\n"
+                    "Belén · Clout Café\nwa.me/5491163729303")
+                enviar(de, asunto, gracias, msg_id, msg.get("References", ""))
+                registrar(msg_id, lead_id, de, asunto, "derivado", detalle, gracias)
+                marcar_en_gmail(m, num, respondido=True)
+                derivadas.append({"de": de, "empresa": empresa, "contacto": direccion,
+                                  "consulta": consulta, "detalle": detalle})
+                respondidos += 1
+            elif not ok and not dry_run:
+                # Si no se pudo derivar, no se pierde: lo mira una persona.
+                motivo = f"nos pasaron un contacto y no se pudo derivar: {detalle}"
+                borrador = redactar_borrador(consulta, de, empresa, contexto, rubro)
+                avisar(de, empresa, asunto, consulta, motivo, borrador)
+                registrar(msg_id, lead_id, de, asunto, "escalado", motivo)
+                marcar_en_gmail(m, num, respondido=False)
+                escalados += 1
+            elif dry_run:
+                respondidos += 1
+
+        elif d.get("accion") == "responder":
             print(f"    ✓ responde: {d['respuesta'][:90].replace(chr(10),' ')}...")
             if dry_run:
                 respondidos += 1
@@ -595,7 +672,7 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
 
     m.logout()
     if not dry_run:
-        resumen_de_lo_respondido(enviadas)
+        resumen_de_lo_respondido(enviadas, derivadas)
     print(f"\n✅ {respondidos} respondidas · {escalados} escaladas a Nico")
     return respondidos, escalados
 
