@@ -541,7 +541,11 @@ def leads_por_email() -> dict:
     return d
 
 
-def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
+def run(dry_run: bool = False, dias: int = DIAS_ATRAS, solo_de: str | None = None):
+    """
+    solo_de: procesar únicamente los mensajes de esa dirección. Sirve para
+    disparar a mano un caso puntual sin tocar el resto de la bandeja.
+    """
     if not CLAUDE_KEY:
         print("⚠️  Falta ANTHROPIC_API_KEY — no se pueden generar respuestas.")
         return
@@ -577,6 +581,9 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS):
         _, de = parseaddr(de_crudo)
         asunto = msg.get("Subject", "") or "(sin asunto)"
         if not msg_id or not de:
+            continue
+
+        if solo_de and de.lower() != solo_de.lower():
             continue
 
         # Solo se contesta a gente a la que nosotros escribimos
