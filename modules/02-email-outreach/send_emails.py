@@ -1,7 +1,7 @@
 """
 Módulo 02 — Email outreach automatizado.
 Envía emails desde cafeclout@gmail.com a leads en estado 'encolado'.
-Respeta límite de 50/día, solo L-V 09:00-17:00 ART.
+Respeta límite de 80/día en dos tandas de 40, solo L-V 09:00-17:00 ART.
 """
 
 import os, re, html, smtplib, time, psycopg2, datetime
@@ -19,7 +19,11 @@ DB_HOST      = os.environ["SUPABASE_DB_HOST"]
 DB_PASS      = os.environ["SUPABASE_DB_PASS"]
 
 ART = ZoneInfo("America/Argentina/Buenos_Aires")
-MAX_PER_DAY  = 50
+MAX_PER_DAY  = 80
+# Se envía en dos tandas (9 y 14 h): cada corrida manda como máximo esto, sumando
+# iniciales y follow-ups. Desde que se verifica cada dirección (16/09) rebota el
+# 0,5%, lo que permite subir de 50 a 80 sin poner en riesgo la cuenta.
+MAX_PER_RUN  = 40
 MAX_FOLLOWUPS_PER_DAY = 20   # el resto del cupo queda libre para prospectos nuevos
 DELAY_SECS   = 45   # pausa entre emails para evitar spam scoring
 MAX_REINTENTOS = 3  # reintentos ante caída de conexión (no cuenta errores de dirección)
@@ -30,6 +34,17 @@ RUBROS_GASTRO = {"restaurante", "bar", "hotel", "cafe", "catering", "salon_event
 
 # Rubros que reciben oferta corporativa (vending)
 RUBROS_CORP = {"empresa_corporativo", "coworking", "oficina"}
+
+
+# Orden de la cola de primeros mails: primero los rubros que más responden
+# (medido al 03/10: coworking 13%, restaurante 6%, empresas 5%, hoteles 2%).
+PRIORIDAD_RUBRO = """CASE l.rubro
+    WHEN 'coworking' THEN 0
+    WHEN 'empresa_corporativo' THEN 1 WHEN 'oficina' THEN 1
+    WHEN 'restaurante' THEN 2
+    ELSE 3 END"""
+
+_enviados_en_corrida = 0
 
 
 class ConexionCaida(Exception):
@@ -292,7 +307,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
             FROM leads l WHERE l.estado = 'encolado'
               {NO_CONTACTAR_DOMINIO}
               {NO_ENVIADO_AUN}
-            ORDER BY l.created_at LIMIT %(limit)s
+            ORDER BY {PRIORIDAD_RUBRO}, l.created_at LIMIT %(limit)s
         """, {"limit": limit, "email_num": email_num})
     elif email_num == 2:
         # respondio_at IS NULL: red de seguridad extra por si check_replies falló
@@ -561,6 +576,7 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
     dry_run:     True = simular sin enviar
     force_hours: True = ignorar chequeo de horario (para GitHub Actions)
     """
+    global _enviados_en_corrida
     if not force_hours and not is_business_hours() and not dry_run:
         print("⏰ Fuera de horario comercial (L-V 09:00-17:00 ART). Abortando.")
         return
@@ -581,6 +597,12 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
                   f"El cupo restante queda para prospectos nuevos.")
             return
         remaining = min(remaining, fu_restantes)
+
+    if not dry_run:
+        remaining = min(remaining, MAX_PER_RUN - _enviados_en_corrida)
+        if remaining <= 0:
+            print(f"⏸  Tope de esta tanda alcanzado ({MAX_PER_RUN}). Sigue en la próxima.")
+            return
 
     limit  = min(remaining, MAX_PER_DAY) if not dry_run else 5
     leads  = get_leads_to_contact(email_num, limit)
@@ -654,6 +676,7 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
                 update_lead(lead["id"], email_num, msg_id)
                 print("✓", flush=True)
                 sent += 1
+                _enviados_en_corrida += 1
                 sent_details.append(lead)
             else:
                 # La reserva NO se libera: si el corte fue ambiguo, reintentar

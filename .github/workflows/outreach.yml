@@ -2,8 +2,11 @@ name: Clout Café — Outreach diario
 
 on:
   schedule:
-    # 09:00 ART = 12:00 UTC, lunes a viernes
+    # Dos tandas de 40 mails, lunes a viernes: 09:00 ART (12 UTC) y 14:00 ART (17 UTC).
+    # La búsqueda de leads corre solo en la de la mañana (el crédito de Google Maps
+    # alcanza para una pasada por día).
     - cron: "0 12 * * 1-5"
+    - cron: "0 17 * * 1-5"
   workflow_dispatch:
 
 jobs:
@@ -16,7 +19,9 @@ jobs:
     #                  = 0.8 min hoy (128 msgs), 5.7 min con 1000 msgs
     #   PEOR CASO paso de emails: 47.7 min  →  timeout 60 (margen 12)
     #   job: 60 + 12 (scraper) + 3 (setup) = 75  →  timeout 90 (margen 15)
-    # Si cambia MAX_PER_DAY o DELAY_SECS en send_emails.py, recalcular acá.
+    # Desde el 03/10 cada corrida manda como máximo MAX_PER_RUN = 40 (dos tandas
+    # por día): 40 × 50.3s = 33.5 min, por debajo del peor caso de arriba.
+    # Si cambia MAX_PER_RUN o DELAY_SECS en send_emails.py, recalcular acá.
     timeout-minutes: 90
     concurrency:                 # nunca dos runs a la vez
       group: outreach-envio
@@ -85,6 +90,7 @@ jobs:
       # eso traía 25 leads/día en vez de los ~45 esperados.
       # Presupuesto: job 90 - emails 41.4 - setup 0.3 - margen 23 = 25 min.
       - name: Buscar nuevos leads
+        if: github.event.schedule != '0 17 * * 1-5'
         timeout-minutes: 25
         continue-on-error: true
         env:
