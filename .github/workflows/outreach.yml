@@ -86,12 +86,12 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python -u run.py --emails-only --force-hours
 
-      # Scraper de leads. Medido 21/08: con 12 min se CORTABA sin terminar, por
-      # eso traía 25 leads/día en vez de los ~45 esperados.
-      # Presupuesto: job 90 - emails 41.4 - setup 0.3 - margen 23 = 25 min.
+      # Scraper de leads. Desde el 03/10 los mails van en tandas de 40 (≤ 34 min),
+      # así que el job deja más tiempo para buscar: 90 - 34 - 3 setup - 13 margen
+      # = 40 min. Google Maps se corta solo a los 25 (ver run.py).
       - name: Buscar nuevos leads
         if: github.event.schedule != '0 17 * * 1-5'
-        timeout-minutes: 25
+        timeout-minutes: 40
         continue-on-error: true
         env:
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}

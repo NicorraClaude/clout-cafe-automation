@@ -129,15 +129,16 @@ def run_scrape():
     try:
         maps = load_module("modules/01-lead-gen/maps_scraper.py", "maps_scraper")
         zonas = maps.ZONAS
-        # Rendimiento REAL medido sobre 7 días: 2 zonas × 4 rubros = 25 leads/día.
-        # Con 30 emails nuevos por día eso achicaba la cola 5 leads diarios.
-        # 3 zonas × 5 rubros ≈ 47 leads/día por ~USD 152/mes de la API de Google
-        # (crédito gratuito USD 200). Con 4 zonas se pasaría del crédito.
+        # Desde el 03/10/2026 usa la API nueva de Places: la web viene en la misma
+        # búsqueda, así que cada consulta cuesta ≈ USD 0,035 y trae 20 lugares.
+        # 3 zonas × 17 rubros × hasta 3 páginas ≤ 153 consultas ≤ USD 5,4 por día;
+        # en la práctica muchas búsquedas tienen 1 o 2 páginas. Antes eran ≈ USD 7
+        # por día para revisar 300 lugares, con los mismos 20 por búsqueda siempre.
         n = 3
         ini = (day_of_year * n) % len(zonas)
         batch = (zonas + zonas)[ini:ini + n]
         print(f"  Zonas de hoy: {[z[0] for z in batch]}")
-        maps.run(zonas=batch, rubros=maps.RUBROS[:5])
+        maps.run(zonas=batch, rubros=maps.RUBROS, minutos=25)
     except Exception as e:
         print(f"  Google Maps error (no crítico): {e}")
 

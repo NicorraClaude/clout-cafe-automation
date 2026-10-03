@@ -305,6 +305,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
         cur.execute(f"""
             SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
             FROM leads l WHERE l.estado = 'encolado'
+              AND l.rebote_at IS NULL
               {NO_CONTACTAR_DOMINIO}
               {NO_ENVIADO_AUN}
             ORDER BY {PRIORIDAD_RUBRO}, l.created_at LIMIT %(limit)s
@@ -318,6 +319,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
             WHERE l.estado = 'email_1_enviado'
               AND l.email_1_at < now() - interval '4 days'
               AND l.respondio_at IS NULL
+              AND l.rebote_at IS NULL
               {NO_CONTACTAR_DOMINIO}
               {NO_ENVIADO_AUN}
             ORDER BY l.email_1_at LIMIT %(limit)s
@@ -329,6 +331,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
             WHERE l.estado = 'email_2_enviado'
               AND l.email_2_at < now() - interval '5 days'
               AND l.respondio_at IS NULL
+              AND l.rebote_at IS NULL
               {NO_CONTACTAR_DOMINIO}
               {NO_ENVIADO_AUN}
             ORDER BY l.email_2_at LIMIT %(limit)s

@@ -55,17 +55,27 @@ ZONAS = [(n, p) for n, p, _bbox in _ds.ALL_LOCATIONS]
 # Los primeros rinden 3x más que los últimos: las cafeterías chicas casi nunca
 # publican email (usan Instagram), los hoteles y oficinas casi siempre sí.
 RUBROS = [
-    ("hotel",               "hotel"),                  # 64%
-    ("empresa_corporativo", "oficinas corporativas"),  # 62%
-    ("salon_eventos",       "salón de eventos"),       # 46%
-    ("coworking",           "espacio de coworking"),   # 38%
-    ("catering",            "empresa de catering"),    # 36%
+    # Los que más responden van primero (respuesta medida al 03/10/2026:
+    # coworking 13%, restaurante 6%, empresas 5%, hoteles 2%). "Oficinas
+    # corporativas" sola traía siempre los mismos 60 lugares: se busca por tipo
+    # de oficina, que es donde está la gente que toma café todo el día.
+    ("coworking",           "espacio de coworking"),
+    ("empresa_corporativo", "oficinas corporativas"),
+    ("empresa_corporativo", "estudio contable"),
+    ("empresa_corporativo", "estudio jurídico"),
+    ("empresa_corporativo", "agencia de marketing"),
+    ("empresa_corporativo", "empresa de software"),
+    ("empresa_corporativo", "consultora"),
+    ("empresa_corporativo", "inmobiliaria"),
+    ("restaurante",         "restaurante"),
+    ("hotel",               "hotel"),
+    ("catering",            "empresa de catering"),
+    ("salon_eventos",       "salón de eventos"),
     ("clinica_salud",       "clínica sanatorio"),
     ("educacion",           "universidad instituto"),
     ("club",                "club social deportivo"),
-    ("restaurante",         "restaurante"),
     ("panaderia",           "panadería pastelería"),
-    ("cafe",                "cafetería"),              # 20%
+    ("cafe",                "cafetería"),
 ]
 
 
@@ -75,21 +85,25 @@ def fetch(url: str, timeout: int = 12) -> bytes:
         return r.read()
 
 
+# Places API (New): una sola consulta devuelve hasta 20 lugares CON su web
+# (campo websiteUri), y nextPageToken para pedir hasta 3 páginas (60 lugares).
+# La API vieja obligaba a pagar un Place Details por cada lugar para saber la
+# web: unas 12 veces más caro por lugar revisado (medido 03/10/2026).
+CAMPOS = "places.id,places.displayName,places.websiteUri,nextPageToken"
+
+
 def places_search(query: str, page_token: str = "") -> dict:
-    params = {"query": query, "key": MAPS_KEY, "language": "es", "region": "ar"}
+    body = {"textQuery": query, "languageCode": "es", "regionCode": "AR", "pageSize": 20}
     if page_token:
-        params["pagetoken"] = page_token
-    url = ("https://maps.googleapis.com/maps/api/place/textsearch/json?"
-           + urllib.parse.urlencode(params))
-    return json.loads(fetch(url))
-
-
-def place_details(place_id: str) -> dict:
-    params = {"place_id": place_id, "fields": "name,website", "key": MAPS_KEY,
-              "language": "es"}
-    url = ("https://maps.googleapis.com/maps/api/place/details/json?"
-           + urllib.parse.urlencode(params))
-    return json.loads(fetch(url)).get("result", {})
+        body["pageToken"] = page_token
+    req = urllib.request.Request(
+        "https://places.googleapis.com/v1/places:searchText",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "X-Goog-Api-Key": MAPS_KEY,
+                 "X-Goog-FieldMask": CAMPOS},
+    )
+    with urllib.request.urlopen(req, timeout=20, context=CTX) as r:
+        return json.loads(r.read())
 
 
 def email_desde_web(url: str) -> str | None:
@@ -135,48 +149,100 @@ def insert_lead(nombre: str, email: str, rubro: str, zona: str, provincia: str) 
         cur.close(); conn.close()
 
 
+# ── Lugares ya revisados ─────────────────────────────────────────────────────
+# Cada zona vuelve a buscarse cada ~2 semanas. Sin esta memoria se volvían a
+# visitar las mismas webs (lento) y se terminaba encontrando casi nada nuevo.
+REVISITAR_DIAS = 120
+
+def _vistos(conn, ids: list) -> set:
+    if not ids:
+        return set()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS maps_vistos (
+            place_id text PRIMARY KEY, visto_at timestamptz NOT NULL DEFAULT now())
+    """)
+    cur.execute("SELECT place_id FROM maps_vistos WHERE place_id = ANY(%s) "
+                "AND visto_at > now() - make_interval(days => %s)", (ids, REVISITAR_DIAS))
+    r = {x[0] for x in cur.fetchall()}
+    conn.commit(); cur.close()
+    return r
+
+def _marcar_vistos(conn, ids: list):
+    if not ids:
+        return
+    cur = conn.cursor()
+    cur.executemany("INSERT INTO maps_vistos (place_id) VALUES (%s) ON CONFLICT (place_id) "
+                    "DO UPDATE SET visto_at = now()", [(i,) for i in ids])
+    conn.commit(); cur.close()
+
+
 def run(zonas: list | None = None, rubros: list | None = None,
-        max_por_busqueda: int = 20) -> int:
+        max_paginas: int = 3, minutos: float = 20) -> int:
+    """Busca cada rubro en cada zona (hasta max_paginas × 20 lugares), lee las
+    webs nuevas en paralelo y guarda los que publican email. Corta a los
+    `minutos` para no pasarse del tiempo del job."""
+    from concurrent.futures import ThreadPoolExecutor
     if not MAPS_KEY:
         print("⚠️  Falta GOOGLE_MAPS_API_KEY — se omite Google Maps.")
         return 0
 
     zonas  = zonas if zonas is not None else ZONAS
     rubros = rubros if rubros is not None else RUBROS
-    total = 0
+    fin = time.time() + minutos * 60
+    total = consultas = revisados = 0
+    conn = db_conn()
 
-    for zona, provincia in zonas:
-        print(f"\n📍 {zona} ({provincia})")
-        for rubro_es, termino in rubros:
-            try:
-                data = places_search(f"{termino} en {zona}, Argentina")
-                if data.get("status") not in ("OK", "ZERO_RESULTS"):
-                    print(f"  API {data.get('status')}: {data.get('error_message','')[:60]}")
-                    continue
+    try:
+        for zona, provincia in zonas:
+            print(f"\n📍 {zona} ({provincia})")
+            for rubro_es, termino in rubros:
+                if time.time() > fin:
+                    print("⏱  Tiempo agotado: sigue en la próxima corrida.")
+                    raise StopIteration
+                lugares, token = [], ""
+                try:
+                    for _ in range(max_paginas):
+                        data = places_search(f"{termino} en {zona}, Buenos Aires, Argentina", token)
+                        consultas += 1
+                        lugares += data.get("places", [])
+                        token = data.get("nextPageToken", "")
+                        if not token:
+                            break
+                except Exception as e:
+                    print(f"  Error {zona}/{termino}: {str(e)[:90]}")
 
-                for place in data.get("results", [])[:max_por_busqueda]:
-                    nombre = place.get("name", "").strip()
-                    pid    = place.get("place_id")
-                    if not nombre or not pid:
-                        continue
-                    if is_competitor(nombre):
-                        continue
+                vistos = _vistos(conn, [l["id"] for l in lugares])
+                nuevos = [l for l in lugares if l["id"] not in vistos]
+                candidatos = [l for l in nuevos
+                              if (l.get("websiteUri") or "").startswith("http")
+                              and not is_competitor(l.get("displayName", {}).get("text", ""))]
+                with ThreadPoolExecutor(max_workers=12) as ex:
+                    emails = list(ex.map(lambda l: _email_seguro(l["websiteUri"]), candidatos))
+                n = 0
+                for l, email in zip(candidatos, emails):
+                    nombre = l.get("displayName", {}).get("text", "").strip()
+                    if email and nombre and insert_lead(nombre, email, rubro_es, zona, provincia):
+                        n += 1
+                _marcar_vistos(conn, [l["id"] for l in nuevos])
+                revisados += len(nuevos)
+                total += n
+                print(f"  {termino:<24} {len(lugares):>3} lugares · {len(nuevos):>3} nuevos · {n:>2} leads")
+    except StopIteration:
+        pass
+    finally:
+        conn.close()
 
-                    web = place_details(pid).get("website", "")
-                    if not web or not web.startswith("http"):
-                        continue
-
-                    email = email_desde_web(web)
-                    if email and insert_lead(nombre, email, rubro_es, zona, provincia):
-                        print(f"    ✓ {nombre[:40]:<40} {email}")
-                        total += 1
-                    time.sleep(0.2)
-            except Exception as e:
-                print(f"  Error {zona}/{rubro_es}: {str(e)[:70]}")
-            time.sleep(0.4)
-
-    print(f"\n✅ Google Maps: {total} leads nuevos")
+    print(f"\n✅ Google Maps: {total} leads nuevos · {revisados} lugares revisados · "
+          f"{consultas} consultas (≈ USD {consultas * 0.035:.2f})")
     return total
+
+
+def _email_seguro(web: str) -> str | None:
+    try:
+        return email_desde_web(web)
+    except Exception:
+        return None
 
 
 if __name__ == "__main__":
