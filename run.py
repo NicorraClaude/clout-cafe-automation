@@ -79,8 +79,9 @@ def _run_emails_inner(send, dry_run: bool, force_hours: bool):
     except Exception as e:
         print(f"  Respuestas automáticas error (no crítico): {e}")
 
-    print("\n[4] Enviando follow-ups (email #2 y #3)...")
+    print("\n[4] Enviando follow-ups (muestra, email #2 y #3)...")
     try:
+        send.run(email_num=4, dry_run=dry_run, force_hours=force_hours)
         send.run(email_num=3, dry_run=dry_run, force_hours=force_hours)
         send.run(email_num=2, dry_run=dry_run, force_hours=force_hours)
     except Exception as e:

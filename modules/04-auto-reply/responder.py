@@ -150,6 +150,7 @@ Esas son negociaciones que cierra Nico, no consultas de precio.
 
 También escalá si:
 · quieren cerrar una compra, coordinar una entrega o hablar de un contrato
+· aceptan la muestra sin cargo o nos pasan una dirección para mandarla
 · hay un reclamo, una queja o algo que suene delicado
 · piden hablar por teléfono o reunirse
 · la consulta es confusa o no se entiende qué necesitan

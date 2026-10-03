@@ -175,8 +175,24 @@ Antes de cerrar: ¿cómo resuelven hoy el café en la oficina? Me ayuda para la 
 }
 
 
+# Email 4: muestra sin cargo para quien tocó un link del mail y no contestó.
+# Va en el mismo hilo y saca al contacto de la secuencia (estado muestra_pendiente
+# → muestra_ofrecida). No dice que vimos el clic: eso cae mal.
+TEMPLATE_MUESTRA = {
+    "subject": "Una muestra para {nombre_lugar}",
+    "body": """Hola {nombre_contacto},
+
+Te escribí hace unos días por el café de {nombre_lugar}. Para que no quede solo en una propuesta escrita: les acercamos una muestra sin cargo, la prueban con el equipo y, si les gusta, hablamos.
+
+¿A qué dirección y quién la recibe?
+
+{firma}""",
+}
+
+
 def get_templates(rubro: str) -> dict:
-    return TEMPLATES_CORP if is_corp(rubro) else TEMPLATES_GASTRO
+    base = TEMPLATES_CORP if is_corp(rubro) else TEMPLATES_GASTRO
+    return {**base, 4: TEMPLATE_MUESTRA}
 
 
 TEMPLATES = TEMPLATES_GASTRO  # default para compatibilidad
@@ -337,9 +353,21 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
             ORDER BY l.email_2_at LIMIT %(limit)s
         """, {"limit": limit, "email_num": email_num})
 
+    elif email_num == 4:
+        cur.execute(f"""
+            SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
+            FROM leads l
+            WHERE l.estado = 'muestra_pendiente'
+              AND l.respondio_at IS NULL
+              AND l.rebote_at IS NULL
+              {NO_CONTACTAR_DOMINIO}
+              {NO_ENVIADO_AUN}
+            ORDER BY l.email_1_at LIMIT %(limit)s
+        """, {"limit": limit, "email_num": email_num})
+
     else:
         cur.close(); conn.close()
-        raise ValueError(f"email_num inválido: {email_num} (solo 1, 2 o 3)")
+        raise ValueError(f"email_num inválido: {email_num} (solo 1 a 4)")
 
     rows = cur.fetchall()
     cur.close(); conn.close()
@@ -548,8 +576,10 @@ def update_lead(lead_id: str, email_num: int, msg_id: str | None):
     lead sigue figurando como pendiente. La reserva impide que se le reenvíe,
     pero el estado quedaría desincronizado con la realidad.
     """
-    estado_map = {1: "email_1_enviado", 2: "email_2_enviado", 3: "email_3_enviado"}
-    at_col_map = {1: "email_1_at",      2: "email_2_at",      3: "email_3_at"}
+    estado_map = {1: "email_1_enviado", 2: "email_2_enviado", 3: "email_3_enviado",
+                  4: "muestra_ofrecida"}
+    at_col_map = {1: "email_1_at",      2: "email_2_at",      3: "email_3_at",
+                  4: "muestra_at"}
     now = datetime.datetime.now(ART)
 
     for intento in range(3):
@@ -593,7 +623,8 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
     # Los follow-ups no pueden comerse todo el cupo: se les reserva como máximo
     # MAX_FOLLOWUPS_PER_DAY para que siempre queden lugares para prospectos nuevos.
     # Se descuentan los follow-ups ya enviados hoy (puede haber corridas previas).
-    if email_num > 1:
+    # La muestra (email 4) es para pocos contactos y no espera: no usa el tope de follow-ups.
+    if email_num in (2, 3):
         fu_restantes = MAX_FOLLOWUPS_PER_DAY - followups_sent_today()
         if fu_restantes <= 0 and not dry_run:
             print(f"📭 Tope de follow-ups alcanzado ({MAX_FOLLOWUPS_PER_DAY}/día). "
@@ -702,7 +733,7 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
 
 def _send_report_to_self(email_num: int, sent_list: list, failed_list: list):
     """Envía resumen del batch a cafeclout@gmail.com."""
-    tipo = {1: "Email inicial", 2: "Follow-up 1", 3: "Follow-up 2"}.get(email_num, f"Email #{email_num}")
+    tipo = {1: "Email inicial", 2: "Follow-up 1", 3: "Follow-up 2", 4: "Muestra sin cargo"}.get(email_num, f"Email #{email_num}")
     now_str = datetime.datetime.now(ART).strftime("%d/%m/%Y %H:%M")
 
     lines = [f"REPORTE OUTREACH — {tipo}", f"Clout Café · {now_str}", "=" * 48, ""]
