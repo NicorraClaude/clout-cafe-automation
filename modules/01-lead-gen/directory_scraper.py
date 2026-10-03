@@ -1,7 +1,8 @@
 """
 Scraper de directorios para Clout Café — toda Argentina.
 Fuente principal: OpenStreetMap Overpass API.
-Cubre CABA por barrios, luego GBA y capitales de provincia.
+Cubre CABA por barrios y el conurbano. El interior quedó afuera a propósito:
+el café se entrega acá y la máquina en comodato no viaja (03/10/2026).
 """
 
 import os, re, time, psycopg2, ssl, urllib.request, urllib.parse, json
@@ -83,10 +84,10 @@ GBA_CIUDADES = [
     ("Avellaneda",    "Prov. Buenos Aires", "-34.679,-58.379,-34.652,-58.343"),
     ("Lanús",         "Prov. Buenos Aires", "-34.717,-58.407,-34.690,-58.371"),
     ("La Plata",      "Prov. Buenos Aires", "-34.940,-57.982,-34.887,-57.929"),
-    ("Mar del Plata", "Prov. Buenos Aires", "-38.020,-57.580,-37.990,-57.535"),
-    ("Bahía Blanca",  "Prov. Buenos Aires", "-38.738,-62.293,-38.698,-62.239"),
-    ("Tandil",        "Prov. Buenos Aires", "-37.336,-59.153,-37.306,-59.112"),
-    ("Rosario",       "Prov. Buenos Aires", "-32.990,-60.700,-32.940,-60.630"),  # es Santa Fe pero coloquialmente
+    ("Morón",         "Prov. Buenos Aires", "-34.665,-58.635,-34.635,-58.595"),
+    ("San Martín",    "Prov. Buenos Aires", "-34.590,-58.555,-34.560,-58.515"),
+    ("Ituzaingó",     "Prov. Buenos Aires", "-34.670,-58.690,-34.645,-58.650"),
+    ("Berazategui",   "Prov. Buenos Aires", "-34.775,-58.225,-34.745,-58.185"),
 ]
 
 INTERIOR_CIUDADES = [
@@ -118,7 +119,9 @@ INTERIOR_CIUDADES = [
     ("Luján",         "Prov. Buenos Aires", "-34.580,-59.120,-34.550,-59.075"),
 ]
 
-ALL_LOCATIONS = CABA_BARRIOS + GBA_CIUDADES + INTERIOR_CIUDADES
+# Solo CABA y el conurbano: es donde entregamos y donde la máquina en comodato
+# tiene sentido. INTERIOR_CIUDADES queda escrito por si algún día se abre una zona.
+ALL_LOCATIONS = CABA_BARRIOS + GBA_CIUDADES
 
 # ─────────────────────────────────────────────────────────────────────────────
 
