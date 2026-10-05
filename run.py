@@ -95,18 +95,6 @@ def _run_emails_inner(send, dry_run: bool, force_hours: bool):
 
     print("\n✅ Emails completos.")
 
-    # Avisar si la cola de prospectos se está agotando
-    try:
-        alertas = load_module("modules/04-auto-reply/alertas.py", "alertas")
-        conn = alertas.db_conn(); cur = conn.cursor()
-        cur.execute("SELECT count(*) FROM leads WHERE estado IN ('nuevo','encolado')")
-        quedan = cur.fetchone()[0]
-        cur.close(); conn.close()
-        if quedan < 150:          # menos de 5 días de envíos
-            alertas.cola_vacia(quedan)
-    except Exception as e:
-        print(f"  Chequeo de cola error: {e}")
-
     print("\n[REPORTE]")
     try:
         report_mod = load_module("daily_report.py", "daily_report")
@@ -156,6 +144,20 @@ def run_scrape():
         print(f"  OpenStreetMap error (no crítico): {e}")
 
     print("\n✅ Scraping completo.")
+
+    # El aviso de cola corta va DESPUÉS de buscar: antes se miraba entre los
+    # mails y la búsqueda, y el 05/10 avisó con 110 cuando una hora después
+    # había 385. Con ~60 mails nuevos por día, 180 son tres días de envíos.
+    try:
+        alertas = load_module("modules/04-auto-reply/alertas.py", "alertas")
+        conn = alertas.db_conn(); cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM leads WHERE estado IN ('nuevo','encolado')")
+        quedan = cur.fetchone()[0]
+        cur.close(); conn.close()
+        if quedan < 180:
+            alertas.cola_vacia(quedan)
+    except Exception as e:
+        print(f"  Chequeo de cola error: {e}")
 
 
 def main(dry_run: bool = False):
