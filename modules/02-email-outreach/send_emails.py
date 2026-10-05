@@ -76,103 +76,110 @@ WhatsApp: wa.me/5491163729303
 clout.ar"""
 
 
+# Secuencia de 3 mails por grupo (reescrita el 03/10/2026, aprobada por Nico):
+# cortos, sin prometer "pagar menos", una máquina distinta según el lugar.
+#   · gastronomía: espresso con molino en comodato (lo normal en una barra)
+#   · oficinas: vending automático Necta, mantenimiento y reposición nuestros
+#   · coworkings: lo mismo, más un descuento para que los miembros lleven café a casa
+#   · mucho tránsito (universidades, clínicas, gimnasios): autoservicio con fichas
+# {saludo} es " Nombre" si sabemos cómo se llama, o nada: "Hola," a secas.
+PRESENTACION = "Soy Belén, de Clout Café, un tostadero artesanal de Buenos Aires."
+
+def _cierre(asunto: str, pregunta: str) -> dict:
+    return {"subject": asunto, "body": """Hola{saludo}, no quiero molestarte, así que este es mi último mensaje.
+
+Si en algún momento quieren cambiar o probar otro café, acá estamos.
+
+Una sola pregunta antes de cerrar, que me ayuda mucho: """ + pregunta + """
+
+{firma}"""}
+
 TEMPLATES_GASTRO = {
-    1: {
-        "subject": "Café de especialidad y comercial para {nombre_lugar} — dos opciones sin vueltas",
-        "body": """Hola {nombre_contacto},
+    1: {"subject": "Café para {nombre_lugar}", "body": """Hola{saludo},
 
-Soy Belén, de Clout Café. Somos un tostadero artesanal de Buenos Aires — nos dedicamos exclusivamente al café, y eso se nota en el producto y en el servicio.
+""" + PRESENTACION + """ Les escribo para proponerles nuestro café para {nombre_lugar}, en dos formatos:
 
-Te escribo porque creemos que {nombre_lugar} puede tomar mejor café y pagar menos por él.
+— Solo el café: de especialidad o comercial, tostado esa semana, con entrega directa y mejor precio a mayor volumen.
+— Con máquina: desde 30 kg por mes les instalamos una espresso con molino en comodato, sin cargo.
 
-Tenemos dos opciones:
+Si quieren, les acercamos una muestra para que la prueben en la barra. Las opciones están en clout.ar.
 
-OPCIÓN A — SOLO EL CAFÉ
-Si ya tienen máquina, nosotros proveemos el café — de especialidad o comercial, según lo que necesiten. Entrega semanal, tostado fresco, trato directo. A mayor volumen, mejor precio.
+{firma}"""},
+    2: {"subject": "Re: Café para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-OPCIÓN B — MÁQUINA EN COMODATO + CAFÉ
-Comprando 30 kg o más por mes, instalamos una máquina de espresso sin costo adicional. Ustedes solo pagan el café, nosotros nos encargamos del resto.
+Sé que en {nombre_lugar} no sobra el tiempo, así que voy al grano: les mandamos una muestra sin cargo, la prueban con el equipo y, si les gusta, armamos la propuesta según cuánto café usan por mes.
 
-En clout.ar vas a poder ver las opciones disponibles. Si alguna te interesa, podemos hablar 5 minutos para adaptar la propuesta a lo que necesiten y contarte sobre los precios mayoristas.
+¿A qué dirección la mando y quién la recibe?
 
-{firma}""",
-    },
-    2: {
-        "subject": "Re: Clout Café — propuesta para {nombre_lugar}",
-        "body": """{nombre_contacto}, quería asegurarme de que llegó mi mensaje.
-
-Sé que un {rubro} no para, así que lo resumo en dos líneas:
-
-— Solo el café: precio mayorista, entrega semanal, sin contrato. A mayor volumen, mejor precio.
-— Café + máquina: 30 kg/mes y les dejamos una máquina de espresso en comodato.
-
-No cobramos lo que no vale. Si hoy están pagando más por menos calidad, tiene sentido que lo comparemos.
-
-Puedo mandar muestras sin cargo para que lo prueben antes de decidir cualquier cosa.
-
-{firma}""",
-    },
-    3: {
-        "subject": "Última consulta — {nombre_lugar}",
-        "body": """{nombre_contacto}, no quiero molestarte, así que este es mi último mensaje.
-
-Si en algún momento quieren optimizar el café — ya sea bajando costos, mejorando la calidad, o ambas — saben dónde encontrarnos.
-
-Una sola pregunta antes de cerrar: ¿qué es lo que hoy les frena para cambiar de proveedor? Precio, logística, la máquina actual... Me ayuda saberlo.
-
-{firma}""",
-    },
+{firma}"""},
+    3: _cierre("Re: Café para {nombre_lugar}",
+               "¿qué les frena hoy para cambiar de proveedor? ¿El precio, la máquina que tienen, la logística?"),
 }
 
 TEMPLATES_CORP = {
-    1: {
-        "subject": "Café para {nombre_lugar} — dos opciones sin vueltas",
-        "body": """Hola {nombre_contacto},
+    1: {"subject": "El café de la oficina en {nombre_lugar}", "body": """Hola{saludo},
 
-Soy Belén, de Clout Café. Somos un tostadero artesanal de Buenos Aires — nos dedicamos exclusivamente al café, y sabemos lo que significa dar un buen servicio.
+""" + PRESENTACION + """
 
-Te escribo porque {nombre_lugar} puede tomar mejor café, pagar menos por él, y no tener que gestionar nada. Las tres cosas a la vez.
+Instalamos máquinas automáticas de espresso con leche en oficinas: las mantenemos nosotros y reponemos el café, así nadie del equipo tiene que ocuparse. Desde 30 kg por mes, la máquina va sin cargo. Si ya tienen máquina o cafetera, les proveemos solo el café, tostado esa semana.
 
-Tenemos dos opciones:
+¿Les cuento cuál conviene según cuánta gente son? Las opciones están en clout.ar.
 
-OPCIÓN A — SOLO EL CAFÉ
-Si ya tienen máquina o cafetera, les proveemos café de especialidad o comercial a precio mayorista. Tostado fresco, entrega directa, sin intermediarios. A mayor volumen, mejor precio.
+{firma}"""},
+    2: {"subject": "Re: El café de la oficina en {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-OPCIÓN B — SERVICIO DE VENDING COMPLETO
-Instalamos una máquina de espresso automática, la mantenemos, y reponemos el café cada semana. El equipo toma buen café sin que nadie tenga que gestionar nada.
+Para que no quede solo en una propuesta escrita: les acercamos una muestra sin cargo, la prueban con el equipo y, si les gusta, vemos qué máquina conviene según cuántos son.
 
-En nuestra web vas a poder ver todas las opciones disponibles y los precios de referencia: clout.ar
+¿A qué dirección la mando y quién la recibe?
 
-Si alguna opción te interesa, podemos hablar 5 minutos y nos adaptamos a lo que necesiten.
-
-{firma}""",
-    },
-    2: {
-        "subject": "Re: Café para {nombre_lugar} — retomo la propuesta",
-        "body": """{nombre_contacto}, te escribí la semana pasada, quería retomar.
-
-Dos opciones para {nombre_lugar}:
-
-— Solo el café a precio mayorista, con entrega directa. A mayor volumen, mejor precio. Sin compromiso, sin contrato.
-— Vending completo: máquina instalada + café + mantenimiento + reposición semanal.
-
-La diferencia respecto al proveedor actual: café tostado en Buenos Aires esa semana, no importado con meses de viaje. Y precios sin el margen inflado de las marcas grandes.
-
-¿Charlamos?
-
-{firma}""",
-    },
-    3: {
-        "subject": "Última consulta — {nombre_lugar}",
-        "body": """{nombre_contacto}, no quiero molestarte, así que este es mi último mensaje.
-
-Si en algún momento buscan optimizar el café de {nombre_lugar} — mejor calidad, menor costo, o las dos — ya saben dónde estamos.
-
-Antes de cerrar: ¿cómo resuelven hoy el café en la oficina? Me ayuda para la próxima propuesta.
-
-{firma}""",
-    },
+{firma}"""},
+    3: _cierre("Re: El café de la oficina en {nombre_lugar}",
+               "¿cómo resuelven hoy el café en la oficina?"),
 }
+
+TEMPLATES_COWORK = {
+    1: {"subject": "Café para los miembros de {nombre_lugar}", "body": """Hola{saludo},
+
+""" + PRESENTACION + """
+
+El café es de lo primero que nota alguien que entra a un coworking. Les proponemos una máquina automática de espresso con leche, sin cargo desde 30 kg por mes, con el mantenimiento y la reposición a cargo nuestro. Y sus miembros tienen un descuento para llevarse nuestro café a casa.
+
+Las opciones están en clout.ar. ¿Lo charlamos?
+
+{firma}"""},
+    2: {"subject": "Re: Café para los miembros de {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
+
+Para que lo prueben antes de decidir nada: les acercamos una muestra sin cargo para el espacio y, si les gusta a ustedes y a los miembros, vemos qué máquina conviene.
+
+¿A qué dirección la mando y quién la recibe?
+
+{firma}"""},
+    3: _cierre("Re: Café para los miembros de {nombre_lugar}",
+               "¿cómo resuelven hoy el café para los miembros?"),
+}
+
+TEMPLATES_TRANSITO = {
+    1: {"subject": "Café de autoservicio para {nombre_lugar}", "body": """Hola{saludo},
+
+""" + PRESENTACION + """
+
+Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 bebidas: café, cortado, chocolate y té. Funcionan con fichas, así que cada uno paga lo que toma. La instalamos, la mantenemos y la reponemos nosotros, y desde 30 kg por mes va sin cargo.
+
+¿Les interesa que lo veamos? Las opciones están en clout.ar.
+
+{firma}"""},
+    2: {"subject": "Re: Café de autoservicio para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
+
+Si les sirve, les acercamos una muestra sin cargo del café que lleva la máquina y vemos cuál conviene según cuánta gente circula por {nombre_lugar}.
+
+¿A qué dirección la mando y quién la recibe?
+
+{firma}"""},
+    3: _cierre("Re: Café de autoservicio para {nombre_lugar}",
+               "¿cómo resuelven hoy el café ahí?"),
+}
+
+RUBROS_TRANSITO = {"educacion", "clinica_salud", "gimnasio", "museo_cultura"}
 
 
 # Email 4: muestra sin cargo para quien tocó un link del mail y no contestó.
@@ -180,7 +187,7 @@ Antes de cerrar: ¿cómo resuelven hoy el café en la oficina? Me ayuda para la 
 # → muestra_ofrecida). No dice que vimos el clic: eso cae mal.
 TEMPLATE_MUESTRA = {
     "subject": "Una muestra para {nombre_lugar}",
-    "body": """Hola {nombre_contacto},
+    "body": """Hola{saludo},
 
 Te escribí hace unos días por el café de {nombre_lugar}. Para que no quede solo en una propuesta escrita: les acercamos una muestra sin cargo, la prueban con el equipo y, si les gusta, hablamos.
 
@@ -191,7 +198,14 @@ Te escribí hace unos días por el café de {nombre_lugar}. Para que no quede so
 
 
 def get_templates(rubro: str) -> dict:
-    base = TEMPLATES_CORP if is_corp(rubro) else TEMPLATES_GASTRO
+    if rubro == "coworking":
+        base = TEMPLATES_COWORK
+    elif rubro in RUBROS_TRANSITO:
+        base = TEMPLATES_TRANSITO
+    elif is_corp(rubro):
+        base = TEMPLATES_CORP
+    else:
+        base = TEMPLATES_GASTRO
     return {**base, 4: TEMPLATE_MUESTRA}
 
 
@@ -382,6 +396,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
 def render(template: dict, lead: dict) -> tuple[str, str]:
     ctx = {
         "nombre_contacto": (lead["nombre_contacto"] or "equipo").split()[0].capitalize(),
+        "saludo": f' {lead["nombre_contacto"].split()[0].capitalize()}' if (lead.get("nombre_contacto") or "").strip() else "",
         "nombre_lugar": lead["nombre_lugar"],
         "rubro": lead["rubro"] or "negocio",
         "firma": FIRMA,

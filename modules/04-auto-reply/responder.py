@@ -195,19 +195,26 @@ o
 {"accion": "escalar", "motivo": "en una línea, qué dato falta o por qué no podés"}"""
 
 
-# Rubros que reciben la propuesta gastronómica; el resto, la corporativa.
-RUBROS_GASTRO = {"restaurante", "bar", "hotel", "cafe", "catering", "salon_eventos",
-                 "club", "museo_cultura", "panaderia", "gimnasio", "clinica_salud",
-                 "educacion"}
+# Qué propuesta recibió cada rubro: tiene que coincidir con get_templates() de
+# send_emails.py (cuatro grupos desde el 03/10/2026).
+RUBROS_TRANSITO = {"educacion", "clinica_salud", "gimnasio", "museo_cultura"}
+RUBROS_OFICINA = {"empresa_corporativo", "oficina"}
 
 
 def tipo_de_cliente(rubro: str | None) -> str:
     """Determina qué versión de la propuesta recibió, para poder responder por ella."""
     if not rubro:
         return "sin dato — si la respuesta depende del rubro, escalá"
-    if rubro in RUBROS_GASTRO:
-        return f"COMERCIO GASTRONÓMICO (rubro: {rubro}) — recibió la propuesta gastronómica"
-    return f"OFICINA / EMPRESA (rubro: {rubro}) — recibió la propuesta corporativa"
+    if rubro == "coworking":
+        return ("COWORKING — recibió la propuesta de máquina automática de espresso con leche "
+                "(sin cargo desde 30 kg/mes) y un descuento para que sus miembros lleven café a casa")
+    if rubro in RUBROS_TRANSITO:
+        return (f"LUGAR DE MUCHO TRÁNSITO (rubro: {rubro}) — recibió la propuesta de máquina de "
+                "autoservicio de hasta 16 bebidas que funciona con fichas")
+    if rubro in RUBROS_OFICINA:
+        return f"OFICINA / EMPRESA (rubro: {rubro}) — recibió la propuesta corporativa"
+    return (f"COMERCIO GASTRONÓMICO (rubro: {rubro}) — recibió la propuesta gastronómica "
+            "(espresso con molino en comodato desde 30 kg/mes, o solo el café)")
 
 
 def dias_de_demora(msg) -> int:
