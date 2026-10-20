@@ -102,16 +102,14 @@ TEMPLATES_GASTRO = {
 — Solo el café: de especialidad o comercial, tostado esa semana, con entrega directa y mejor precio a mayor volumen.
 — Con máquina: desde 30 kg por mes les instalamos una espresso con molino en comodato, sin cargo.
 
-Si quieren probarlos, pasamos con varios granos y los preparamos ahí, sin tocarles la máquina. Las opciones están en clout.ar.
+Si quieren probarlo, pasamos con todo lo necesario para preparar unos filtrados, sin tocarles la máquina. Las opciones están en clout.ar.
 
 {firma}"""},
     2: {"subject": "Re: Café para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestro café?
 
-Vamos con varias variedades y con todo lo necesario para prepararlas: molino, dripper, filtros y balanza. No les tocamos la máquina ni les cortamos el servicio.
-
-Si después quieren verlo en espresso, eso lo coordinamos aparte, con el tiempo que haga falta.
+Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. No les tocamos la máquina ni les cortamos el servicio.
 
 ¿Qué día les queda cómodo?
 
@@ -132,11 +130,11 @@ Instalamos máquinas automáticas de espresso con leche en oficinas: las mantene
 {firma}"""},
     2: {"subject": "Re: El café de la oficina en {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestro café?
 
-Vamos con varias variedades y con todo lo necesario para prepararlas: molino, dripper, filtros y balanza. Ustedes no tienen que tener nada ni preparar nada.
+Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. Ustedes no tienen que preparar nada.
 
-De paso vemos cuántos son y cómo resuelven hoy el café, que es lo que define qué máquina les conviene.
+De paso vemos cuántos son, que es lo que define qué máquina les conviene.
 
 ¿Qué día les queda cómodo?
 
@@ -157,11 +155,11 @@ Las opciones están en clout.ar. ¿Lo charlamos?
 {firma}"""},
     2: {"subject": "Re: Café para los miembros de {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestro café?
 
-Vamos con varias variedades y con todo para prepararlas: molino, dripper, filtros y balanza. Si hay miembros dando vueltas, que prueben ellos también, que son los que después piden.
+Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. Si hay miembros dando vueltas, que prueben ellos también.
 
-De paso vemos el espacio y dónde iría la máquina.
+De paso vemos dónde iría la máquina.
 
 ¿Qué día les queda cómodo?
 
@@ -182,9 +180,11 @@ Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 
 {firma}"""},
     2: {"subject": "Re: Café de autoservicio para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestro café?
 
-Vamos con varias variedades y con todo para prepararlas, así no tienen que preparar nada. De paso vemos el movimiento y dónde quedaría mejor la máquina.
+Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. Ustedes no tienen que preparar nada.
+
+De paso vemos el movimiento y dónde quedaría mejor la máquina.
 
 ¿Qué día les queda cómodo?
 
@@ -217,9 +217,9 @@ TEMPLATE_VISITA = {
     "subject": "¿Pasamos por {nombre_lugar}?",
     "body": """Hola{saludo},
 
-Te escribí hace unos días por el café de {nombre_lugar}, y antes de seguir mandándote propuestas por escrito prefiero preguntarte algo más simple.
+Te escribí hace unos días por el café de {nombre_lugar}.
 
-¿Te sirve que pasemos a que los pruebes? Vamos con varias variedades y con todo lo necesario para prepararlas: molino, dripper, filtros y balanza. No tenés que tener ni preparar nada.
+¿Te sirve que pasemos a que lo pruebes? Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. No tenés que preparar nada.
 
 ¿Qué día te queda cómodo?
 
