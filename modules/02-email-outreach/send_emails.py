@@ -71,7 +71,7 @@ def is_corp(rubro: str) -> bool:
 # Una sola firma para todos los emails: se escribe acá y las plantillas la
 # insertan con {firma}. En el HTML, "WhatsApp" y "clout.ar" van como links
 # (medidos); el texto plano, que es el respaldo, muestra la dirección entera.
-FIRMA = """Belén · Clout Café
+FIRMA = """Nicolás · Clout Café
 WhatsApp: wa.me/5491163729303
 clout.ar"""
 
@@ -83,7 +83,7 @@ clout.ar"""
 #   · coworkings: lo mismo, más un descuento para que los miembros lleven café a casa
 #   · mucho tránsito (universidades, clínicas, gimnasios): autoservicio con fichas
 # {saludo} es " Nombre" si sabemos cómo se llama, o nada: "Hola," a secas.
-PRESENTACION = "Soy Belén, de Clout Café, un tostadero artesanal de Buenos Aires."
+PRESENTACION = "Soy Nicolás, de Clout Café, un tostadero artesanal de Buenos Aires."
 
 def _cierre(asunto: str, pregunta: str) -> dict:
     return {"subject": asunto, "body": """Hola{saludo}, no quiero molestarte, así que este es mi último mensaje.
@@ -100,7 +100,7 @@ TEMPLATES_GASTRO = {
 """ + PRESENTACION + """ Les escribo para proponerles nuestro café para {nombre_lugar}, en dos formatos:
 
 — Solo el café: de especialidad o comercial, tostado esa semana, con entrega directa y mejor precio a mayor volumen.
-— Con máquina: les instalamos una espresso con molino en comodato. No hay mínimo de compra: desde 30 kg por mes va incluida, y por debajo tiene un cargo mensual.
+— Con máquina: les instalamos una espresso con molino en comodato.
 
 Si quieren probarlo, pasamos con todo lo necesario para preparar unos filtrados, sin tocarles la máquina. Las opciones están en clout.ar.
 
@@ -115,7 +115,7 @@ Vamos con todo lo necesario para preparar unos filtrados y probar diferentes gra
 
 {firma}"""},
     3: _cierre("Re: Café para {nombre_lugar}",
-               "¿qué les frena hoy para cambiar de proveedor? ¿El precio, la máquina que tienen, la logística?"),
+               "¿cómo resuelven hoy el café en {nombre_lugar}?"),
 }
 
 TEMPLATES_CORP = {
@@ -123,7 +123,7 @@ TEMPLATES_CORP = {
 
 """ + PRESENTACION + """
 
-Instalamos máquinas automáticas de espresso con leche en oficinas: las mantenemos nosotros y reponemos el café, así nadie del equipo tiene que ocuparse. No hay mínimo de compra: desde 26 kg por mes la máquina va incluida, y por debajo tiene un cargo mensual. Si ya tienen máquina o cafetera, les proveemos solo el café, tostado esa semana.
+Instalamos máquinas automáticas de espresso con leche en oficinas: las mantenemos nosotros y reponemos el café, así nadie del equipo tiene que ocuparse. Si ya tienen máquina o cafetera, les proveemos solo el café, tostado esa semana.
 
 ¿Les cuento cuál conviene según cuánta gente son? Las opciones están en clout.ar.
 
@@ -133,8 +133,6 @@ Instalamos máquinas automáticas de espresso con leche en oficinas: las mantene
 ¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestro café?
 
 Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. Ustedes no tienen que preparar nada.
-
-De paso vemos cuántos son, que es lo que define qué máquina les conviene.
 
 ¿Qué día les queda cómodo?
 
@@ -148,7 +146,7 @@ TEMPLATES_COWORK = {
 
 """ + PRESENTACION + """
 
-El café es de lo primero que nota alguien que entra a un coworking. Les proponemos una máquina automática de espresso con leche, con el mantenimiento y la reposición a cargo nuestro. No hay mínimo de compra: desde 26 kg por mes va incluida, y por debajo tiene un cargo mensual. Y sus miembros tienen un descuento para llevarse nuestro café a casa.
+El café es de lo primero que nota alguien que entra a un coworking. Les proponemos una máquina automática de espresso con leche, con el mantenimiento y la reposición a cargo nuestro. Y sus miembros tienen un descuento para llevarse nuestro café a casa.
 
 Las opciones están en clout.ar. ¿Lo charlamos?
 
@@ -173,7 +171,7 @@ TEMPLATES_TRANSITO = {
 
 """ + PRESENTACION + """
 
-Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 bebidas: café, cortado, chocolate y té. Funcionan con fichas, así que cada uno paga lo que toma. La instalamos, la mantenemos y la reponemos nosotros. No hay mínimo de compra: desde 37 kg por mes va incluida, y por debajo tiene un cargo mensual.
+Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 bebidas: café, cortado, chocolate y té. Funcionan con fichas, así que cada uno paga lo que toma. La instalamos, la mantenemos y la reponemos nosotros.
 
 ¿Les interesa que lo veamos? Las opciones están en clout.ar.
 
@@ -219,7 +217,7 @@ TEMPLATE_VISITA = {
 
 Te escribí hace unos días por el café de {nombre_lugar}.
 
-¿Te sirve que pasemos a que lo pruebes? Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. No tenés que preparar nada.
+¿Te sirve que pasemos a que lo prueben? Vamos con todo lo necesario para preparar unos filtrados y probar diferentes granos. No tienen que preparar nada.
 
 ¿Qué día te queda cómodo?
 
@@ -456,7 +454,7 @@ def firma_html(lead_id, email_num: int) -> str:
     """La firma con los links puestos sobre las palabras, sin direcciones a la vista."""
     wa = BASE_REDIRECT.format(lead_id=lead_id, email_num=email_num, destino="wa")
     web = BASE_REDIRECT.format(lead_id=lead_id, email_num=email_num, destino="web")
-    return (f'Belén · Clout Café<br>\n<a href="{html.escape(wa)}">WhatsApp</a><br>\n'
+    return (f'Nicolás · Clout Café<br>\n<a href="{html.escape(wa)}">WhatsApp</a><br>\n'
             f'<a href="{html.escape(web)}">clout.ar</a>')
 
 
@@ -566,7 +564,7 @@ def send_email(lead: dict, email_num: int, smtp: smtplib.SMTP_SSL,
     subject, body = render(tmpl, lead)
 
     msg = MIMEMultipart("alternative")
-    msg["From"]    = formataddr(("Belén · Clout Café", GMAIL_USER))
+    msg["From"]    = formataddr(("Nicolás · Clout Café", GMAIL_USER))
     msg["To"]      = lead["email"]
     msg["Subject"] = subject
     # Se usa el Message-ID de la reserva para que el registro y el email real

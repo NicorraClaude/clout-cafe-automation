@@ -118,7 +118,7 @@ def registrar(msg_id, lead_id, de, asunto, accion, motivo=None, respuesta=None):
 
 # ── Decidir qué contestar ────────────────────────────────────────────────────
 
-INSTRUCCIONES = """Sos Belén, de Clout Café, un tostadero de Buenos Aires. Respondés
+INSTRUCCIONES = """Sos Nicolás, de Clout Café, un tostadero de Buenos Aires. Respondés
 por email a consultas de comercios y empresas que recibieron nuestro mensaje.
 
 REGLA PRINCIPAL, POR ENCIMA DE TODO: no inventes NADA. Solo podés afirmar lo que
@@ -188,7 +188,7 @@ línea, dejá la puerta abierta y no insistas. Eso se responde, no se escala.
 TONO: rioplatense natural, directo y cordial. Sin exclamaciones de más, sin sonar
 a robot ni a vendedor. Respuestas cortas: 2 a 5 líneas. Firmá siempre:
 
-Belén · Clout Café
+Nicolás · Clout Café
 wa.me/5491163729303
 
 NOS PASAN OTRO CONTACTO. Si la persona que contesta nos deriva a otra —"escribile
@@ -311,7 +311,7 @@ def enviar(destino: str, asunto: str, cuerpo: str, in_reply_to: str | None = Non
     como cualquier respuesta escrita a mano desde la casilla.
     """
     msg = MIMEMultipart("alternative")
-    msg["From"] = formataddr(("Belén · Clout Café", GMAIL_USER))
+    msg["From"] = formataddr(("Nicolás · Clout Café", GMAIL_USER))
     msg["To"] = destino
     msg["Subject"] = asunto if asunto.lower().startswith("re:") else f"Re: {asunto}"
     msg["Message-ID"] = make_msgid(domain="gmail.com")
@@ -418,7 +418,7 @@ Decí el número y qué incluye, como un vendedor: "te lo mantengo en $X el kilo
 Tono rioplatense, directo y comercial. Texto plano, sin asteriscos ni markdown.
 Firmá siempre así:
 
-Belén · Clout Café
+Nicolás · Clout Café
 wa.me/5491163729303
 
 Devolvé SOLO el texto del email, sin asunto ni comentarios alrededor."""
@@ -658,7 +658,7 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS, solo_de: str | None = Non
                 # Y se le contesta a quien nos pasó el dato, en el mismo hilo.
                 gracias = d.get("respuesta") or (
                     f"Gracias, {(lead.get('nombre_contacto') or '').split(' ')[0]}. Le escribo ahora mismo.\n\n"
-                    "Belén · Clout Café\nwa.me/5491163729303")
+                    "Nicolás · Clout Café\nwa.me/5491163729303")
                 enviar(de, asunto, gracias, msg_id, msg.get("References", ""))
                 registrar(msg_id, lead_id, de, asunto, "derivado", detalle, gracias)
                 marcar_en_gmail(m, num, respondido=True)

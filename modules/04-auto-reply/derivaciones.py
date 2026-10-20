@@ -145,7 +145,7 @@ def enviar_primer_email(lead: dict, quien: str, empresa: str) -> str | None:
         return None
 
     msg = MIMEMultipart("alternative")
-    msg["From"] = formataddr(("Belén · Clout Café", send.GMAIL_USER))
+    msg["From"] = formataddr(("Nicolás · Clout Café", send.GMAIL_USER))
     msg["To"] = lead["email"]
     msg["Subject"] = asunto
     msg["Message-ID"] = msg_id
