@@ -100,7 +100,7 @@ TEMPLATES_GASTRO = {
 """ + PRESENTACION + """ Les escribo para proponerles nuestro café para {nombre_lugar}, en dos formatos:
 
 — Solo el café: de especialidad o comercial, tostado esa semana, con entrega directa y mejor precio a mayor volumen.
-— Con máquina: desde 30 kg por mes les instalamos una espresso con molino en comodato, sin cargo.
+— Con máquina: les instalamos una espresso con molino en comodato. No hay mínimo de compra: desde 30 kg por mes va incluida, y por debajo tiene un cargo mensual.
 
 Si quieren probarlo, pasamos con todo lo necesario para preparar unos filtrados, sin tocarles la máquina. Las opciones están en clout.ar.
 
@@ -123,7 +123,7 @@ TEMPLATES_CORP = {
 
 """ + PRESENTACION + """
 
-Instalamos máquinas automáticas de espresso con leche en oficinas: las mantenemos nosotros y reponemos el café, así nadie del equipo tiene que ocuparse. Desde 30 kg por mes, la máquina va sin cargo. Si ya tienen máquina o cafetera, les proveemos solo el café, tostado esa semana.
+Instalamos máquinas automáticas de espresso con leche en oficinas: las mantenemos nosotros y reponemos el café, así nadie del equipo tiene que ocuparse. No hay mínimo de compra: desde 26 kg por mes la máquina va incluida, y por debajo tiene un cargo mensual. Si ya tienen máquina o cafetera, les proveemos solo el café, tostado esa semana.
 
 ¿Les cuento cuál conviene según cuánta gente son? Las opciones están en clout.ar.
 
@@ -148,7 +148,7 @@ TEMPLATES_COWORK = {
 
 """ + PRESENTACION + """
 
-El café es de lo primero que nota alguien que entra a un coworking. Les proponemos una máquina automática de espresso con leche, sin cargo desde 30 kg por mes, con el mantenimiento y la reposición a cargo nuestro. Y sus miembros tienen un descuento para llevarse nuestro café a casa.
+El café es de lo primero que nota alguien que entra a un coworking. Les proponemos una máquina automática de espresso con leche, con el mantenimiento y la reposición a cargo nuestro. No hay mínimo de compra: desde 26 kg por mes va incluida, y por debajo tiene un cargo mensual. Y sus miembros tienen un descuento para llevarse nuestro café a casa.
 
 Las opciones están en clout.ar. ¿Lo charlamos?
 
@@ -173,7 +173,7 @@ TEMPLATES_TRANSITO = {
 
 """ + PRESENTACION + """
 
-Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 bebidas: café, cortado, chocolate y té. Funcionan con fichas, así que cada uno paga lo que toma. La instalamos, la mantenemos y la reponemos nosotros, y desde 30 kg por mes va sin cargo.
+Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 bebidas: café, cortado, chocolate y té. Funcionan con fichas, así que cada uno paga lo que toma. La instalamos, la mantenemos y la reponemos nosotros. No hay mínimo de compra: desde 37 kg por mes va incluida, y por debajo tiene un cargo mensual.
 
 ¿Les interesa que lo veamos? Las opciones están en clout.ar.
 
