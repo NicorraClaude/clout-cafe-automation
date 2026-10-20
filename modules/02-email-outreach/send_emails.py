@@ -102,16 +102,18 @@ TEMPLATES_GASTRO = {
 — Solo el café: de especialidad o comercial, tostado esa semana, con entrega directa y mejor precio a mayor volumen.
 — Con máquina: desde 30 kg por mes les instalamos una espresso con molino en comodato, sin cargo.
 
-Si quieren, pasamos por la barra con varios granos y los probamos ahí, en su máquina. Las opciones están en clout.ar.
+Si quieren probarlos, pasamos con varios granos y los preparamos ahí, sin tocarles la máquina. Las opciones están en clout.ar.
 
 {firma}"""},
     2: {"subject": "Re: Café para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-No les voy a ofrecer mandarles una muestra por correo: nadie vacía una tolva para probar un café que llegó en un sobre, y lo entendemos.
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
 
-Lo que sí hacemos es pasar por {nombre_lugar} con varios de nuestros granos y prepararlos ahí, en su máquina y con su molienda. En media hora saben si alguno les sirve, sin cambiar nada.
+Vamos con varias variedades y con todo lo necesario para prepararlas: molino, dripper, filtros y balanza. No les tocamos la máquina ni les cortamos el servicio.
 
-¿Les viene bien algún día de esta semana o la que viene?
+Si después quieren verlo en espresso, eso lo coordinamos aparte, con el tiempo que haga falta.
+
+¿Qué día les queda cómodo?
 
 {firma}"""},
     3: _cierre("Re: Café para {nombre_lugar}",
@@ -130,11 +132,13 @@ Instalamos máquinas automáticas de espresso con leche en oficinas: las mantene
 {firma}"""},
     2: {"subject": "Re: El café de la oficina en {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-Antes de proponerles una máquina preferimos pasar a ver cómo toman el café hoy en {nombre_lugar}: con qué lo preparan, cuántos son y en qué momentos del día. Llevamos varios de nuestros granos y los probamos ahí mismo.
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
 
-Es media hora y salen sabiendo qué les conviene, pidan o no.
+Vamos con varias variedades y con todo lo necesario para prepararlas: molino, dripper, filtros y balanza. Ustedes no tienen que tener nada ni preparar nada.
 
-¿Les viene bien algún día de esta semana o la que viene?
+De paso vemos cuántos son y cómo resuelven hoy el café, que es lo que define qué máquina les conviene.
+
+¿Qué día les queda cómodo?
 
 {firma}"""},
     3: _cierre("Re: El café de la oficina en {nombre_lugar}",
@@ -153,9 +157,13 @@ Las opciones están en clout.ar. ¿Lo charlamos?
 {firma}"""},
     2: {"subject": "Re: Café para los miembros de {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-Lo que mejor funciona es que pasemos por {nombre_lugar}: vemos el espacio, dónde iría la máquina y cuánta gente circula, y llevamos varios de nuestros granos para prepararlos ahí. Si hay miembros dando vueltas, mejor: que opinen ellos.
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
 
-¿Les viene bien algún día de esta semana o la que viene?
+Vamos con varias variedades y con todo para prepararlas: molino, dripper, filtros y balanza. Si hay miembros dando vueltas, que prueben ellos también, que son los que después piden.
+
+De paso vemos el espacio y dónde iría la máquina.
+
+¿Qué día les queda cómodo?
 
 {firma}"""},
     3: _cierre("Re: Café para los miembros de {nombre_lugar}",
@@ -174,9 +182,11 @@ Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 
 {firma}"""},
     2: {"subject": "Re: Café de autoservicio para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-Si les sirve, pasamos por {nombre_lugar}, vemos el movimiento y dónde quedaría mejor la máquina, y llevamos el café que lleva adentro para que lo prueben en el momento.
+¿Les sirve que pasemos por {nombre_lugar} a que prueben nuestros cafés?
 
-¿Les viene bien algún día de esta semana o la que viene?
+Vamos con varias variedades y con todo para prepararlas, así no tienen que preparar nada. De paso vemos el movimiento y dónde quedaría mejor la máquina.
+
+¿Qué día les queda cómodo?
 
 {firma}"""},
     3: _cierre("Re: Café de autoservicio para {nombre_lugar}",
@@ -190,23 +200,28 @@ RUBROS_TRANSITO = {"educacion", "clinica_salud", "gimnasio", "museo_cultura"}
 # Va en el mismo hilo y saca al contacto de la secuencia. No dice que vimos el
 # clic: eso cae mal.
 #
-# Antes este mail ofrecía mandar una muestra sin cargo. Se cambió el 20/10/2026:
-# muchos respondían recién con esa oferta y contestaban solo con una dirección,
-# "mandala acá", sin ninguna intención de comprar. Además la muestra no prueba
-# nada: en una oficina no sabemos con qué la van a preparar, y en una cafetería
-# nadie vacía una tolva para probar un café que llegó en un sobre.
+# Antes este mail ofrecía mandar una muestra sin cargo. Se cambió el 20/10/2026
+# porque muchos respondían recién con esa oferta y contestaban solo con una
+# dirección, "mandala acá", sin ninguna intención de comprar.
+#
+# Lo que se ofrece es la visita, y la visita es de FILTRADO: vamos con varias
+# variedades y con todo el equipo —molino, dripper, filtros, balanza—, así el
+# cliente no tiene que poner ni preparar nada. En espresso NO se ofrece probar:
+# para eso el cliente tendría que vaciar su tolva, cortar el servicio y regular
+# la molienda varias veces, y eso no se hace con una muestra. El espresso se
+# prueba solo si lo piden, y para entonces la venta ya está avanzada.
 #
 # Los estados en la base siguen llamándose muestra_* para no romper el
-# histórico, pero lo que se ofrece es la visita.
+# histórico.
 TEMPLATE_VISITA = {
     "subject": "¿Pasamos por {nombre_lugar}?",
     "body": """Hola{saludo},
 
-Te escribí hace unos días por el café de {nombre_lugar} y no quiero insistir con otra propuesta escrita.
+Te escribí hace unos días por el café de {nombre_lugar}, y antes de seguir mandándote propuestas por escrito prefiero preguntarte algo más simple.
 
-Mejor pasamos: llevamos varios de nuestros granos, los preparamos ahí y en media hora ves si alguno te sirve. Sin compromiso y sin que tengas que cambiar nada para probarlo.
+¿Te sirve que pasemos a que los pruebes? Vamos con varias variedades y con todo lo necesario para prepararlas: molino, dripper, filtros y balanza. No tenés que tener ni preparar nada.
 
-¿Te viene bien algún día de esta semana o la que viene?
+¿Qué día te queda cómodo?
 
 {firma}""",
 }

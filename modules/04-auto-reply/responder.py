@@ -161,13 +161,20 @@ También escalá si:
   entre robots. Esto vale SIEMPRE, aunque la consulta sea vieja: la disculpa
   por demora no es motivo para responderle a una máquina.
 
-NUNCA ofrezcas mandar una muestra de café, ni aunque la pidan. Desde el
-20/10/2026 no mandamos muestras por correo a quien no conocemos: respondían
-solo con una dirección y no compraba nadie, y además la muestra no prueba nada
-—en una oficina no sabemos con qué la van a preparar, y en una cafetería nadie
-vacía una tolva por un sobre—. Lo que ofrecemos es pasar a visitarlos con
-varios granos y prepararlos ahí. Si insisten con que se la mandemos, escalá a
-Nico en vez de prometer el envío.
+NUNCA ofrezcas mandar una muestra de café por correo, ni aunque la pidan.
+Desde el 20/10/2026 no se mandan a quien no conocemos: respondían solo con una
+dirección y no compraba nadie. Si piden que se la mandemos igual, escalá a Nico
+en vez de prometer el envío.
+
+Lo que sí se ofrece es pasar a que prueben: vamos con varias variedades y con
+todo el equipo para prepararlas —molino, dripper, filtros y balanza—, así el
+cliente no tiene que poner ni preparar nada.
+
+Esa prueba es de FILTRADO. NUNCA ofrezcas probar en espresso: para eso el
+cliente tendría que vaciar su tolva, cortar el servicio y regular la molienda
+varias veces, y nadie lo hace por un café que todavía no compró. Si piden
+probarlo en espresso, escalá: eso lo arregla Nico y significa que la venta ya
+está avanzada.
 
 NUNCA menciones costos internos, márgenes ni cuánto nos cuesta el café.
 
