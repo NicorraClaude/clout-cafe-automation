@@ -102,14 +102,16 @@ TEMPLATES_GASTRO = {
 — Solo el café: de especialidad o comercial, tostado esa semana, con entrega directa y mejor precio a mayor volumen.
 — Con máquina: desde 30 kg por mes les instalamos una espresso con molino en comodato, sin cargo.
 
-Si quieren, les acercamos una muestra para que la prueben en la barra. Las opciones están en clout.ar.
+Si quieren, pasamos por la barra con varios granos y los probamos ahí, en su máquina. Las opciones están en clout.ar.
 
 {firma}"""},
     2: {"subject": "Re: Café para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-Sé que en {nombre_lugar} no sobra el tiempo, así que voy al grano: les mandamos una muestra sin cargo, la prueban con el equipo y, si les gusta, armamos la propuesta según cuánto café usan por mes.
+No les voy a ofrecer mandarles una muestra por correo: nadie vacía una tolva para probar un café que llegó en un sobre, y lo entendemos.
 
-¿A qué dirección la mando y quién la recibe?
+Lo que sí hacemos es pasar por {nombre_lugar} con varios de nuestros granos y prepararlos ahí, en su máquina y con su molienda. En media hora saben si alguno les sirve, sin cambiar nada.
+
+¿Les viene bien algún día de esta semana o la que viene?
 
 {firma}"""},
     3: _cierre("Re: Café para {nombre_lugar}",
@@ -128,9 +130,11 @@ Instalamos máquinas automáticas de espresso con leche en oficinas: las mantene
 {firma}"""},
     2: {"subject": "Re: El café de la oficina en {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-Para que no quede solo en una propuesta escrita: les acercamos una muestra sin cargo, la prueban con el equipo y, si les gusta, vemos qué máquina conviene según cuántos son.
+Antes de proponerles una máquina preferimos pasar a ver cómo toman el café hoy en {nombre_lugar}: con qué lo preparan, cuántos son y en qué momentos del día. Llevamos varios de nuestros granos y los probamos ahí mismo.
 
-¿A qué dirección la mando y quién la recibe?
+Es media hora y salen sabiendo qué les conviene, pidan o no.
+
+¿Les viene bien algún día de esta semana o la que viene?
 
 {firma}"""},
     3: _cierre("Re: El café de la oficina en {nombre_lugar}",
@@ -149,9 +153,9 @@ Las opciones están en clout.ar. ¿Lo charlamos?
 {firma}"""},
     2: {"subject": "Re: Café para los miembros de {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-Para que lo prueben antes de decidir nada: les acercamos una muestra sin cargo para el espacio y, si les gusta a ustedes y a los miembros, vemos qué máquina conviene.
+Lo que mejor funciona es que pasemos por {nombre_lugar}: vemos el espacio, dónde iría la máquina y cuánta gente circula, y llevamos varios de nuestros granos para prepararlos ahí. Si hay miembros dando vueltas, mejor: que opinen ellos.
 
-¿A qué dirección la mando y quién la recibe?
+¿Les viene bien algún día de esta semana o la que viene?
 
 {firma}"""},
     3: _cierre("Re: Café para los miembros de {nombre_lugar}",
@@ -170,9 +174,9 @@ Para lugares con mucho movimiento tenemos máquinas de autoservicio de hasta 16 
 {firma}"""},
     2: {"subject": "Re: Café de autoservicio para {nombre_lugar}", "body": """Hola{saludo}, retomo mi mensaje de la semana pasada.
 
-Si les sirve, les acercamos una muestra sin cargo del café que lleva la máquina y vemos cuál conviene según cuánta gente circula por {nombre_lugar}.
+Si les sirve, pasamos por {nombre_lugar}, vemos el movimiento y dónde quedaría mejor la máquina, y llevamos el café que lleva adentro para que lo prueben en el momento.
 
-¿A qué dirección la mando y quién la recibe?
+¿Les viene bien algún día de esta semana o la que viene?
 
 {firma}"""},
     3: _cierre("Re: Café de autoservicio para {nombre_lugar}",
@@ -182,16 +186,27 @@ Si les sirve, les acercamos una muestra sin cargo del café que lleva la máquin
 RUBROS_TRANSITO = {"educacion", "clinica_salud", "gimnasio", "museo_cultura"}
 
 
-# Email 4: muestra sin cargo para quien tocó un link del mail y no contestó.
-# Va en el mismo hilo y saca al contacto de la secuencia (estado muestra_pendiente
-# → muestra_ofrecida). No dice que vimos el clic: eso cae mal.
-TEMPLATE_MUESTRA = {
-    "subject": "Una muestra para {nombre_lugar}",
+# Email 4: una visita para quien tocó un link del mail y no contestó.
+# Va en el mismo hilo y saca al contacto de la secuencia. No dice que vimos el
+# clic: eso cae mal.
+#
+# Antes este mail ofrecía mandar una muestra sin cargo. Se cambió el 20/10/2026:
+# muchos respondían recién con esa oferta y contestaban solo con una dirección,
+# "mandala acá", sin ninguna intención de comprar. Además la muestra no prueba
+# nada: en una oficina no sabemos con qué la van a preparar, y en una cafetería
+# nadie vacía una tolva para probar un café que llegó en un sobre.
+#
+# Los estados en la base siguen llamándose muestra_* para no romper el
+# histórico, pero lo que se ofrece es la visita.
+TEMPLATE_VISITA = {
+    "subject": "¿Pasamos por {nombre_lugar}?",
     "body": """Hola{saludo},
 
-Te escribí hace unos días por el café de {nombre_lugar}. Para que no quede solo en una propuesta escrita: les acercamos una muestra sin cargo, la prueban con el equipo y, si les gusta, hablamos.
+Te escribí hace unos días por el café de {nombre_lugar} y no quiero insistir con otra propuesta escrita.
 
-¿A qué dirección y quién la recibe?
+Mejor pasamos: llevamos varios de nuestros granos, los preparamos ahí y en media hora ves si alguno te sirve. Sin compromiso y sin que tengas que cambiar nada para probarlo.
+
+¿Te viene bien algún día de esta semana o la que viene?
 
 {firma}""",
 }
@@ -206,7 +221,7 @@ def get_templates(rubro: str) -> dict:
         base = TEMPLATES_CORP
     else:
         base = TEMPLATES_GASTRO
-    return {**base, 4: TEMPLATE_MUESTRA}
+    return {**base, 4: TEMPLATE_VISITA}
 
 
 TEMPLATES = TEMPLATES_GASTRO  # default para compatibilidad
@@ -638,7 +653,7 @@ def run(email_num: int = 1, dry_run: bool = False, force_hours: bool = False):
     # Los follow-ups no pueden comerse todo el cupo: se les reserva como máximo
     # MAX_FOLLOWUPS_PER_DAY para que siempre queden lugares para prospectos nuevos.
     # Se descuentan los follow-ups ya enviados hoy (puede haber corridas previas).
-    # La muestra (email 4) es para pocos contactos y no espera: no usa el tope de follow-ups.
+    # La visita (email 4) es para pocos contactos y no espera: no usa el tope de follow-ups.
     if email_num in (2, 3):
         fu_restantes = MAX_FOLLOWUPS_PER_DAY - followups_sent_today()
         if fu_restantes <= 0 and not dry_run:

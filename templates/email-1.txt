@@ -1,3 +1,8 @@
+[ YA NO SE USA — queda solo como referencia histórica ]
+Los mails que se mandan de verdad están en modules/02-email-outreach/send_emails.py,
+uno por rubro. Este archivo todavía ofrece mandar muestras por correo, que se
+discontinuó el 20/10/2026.
+
 ASUNTO: Café de especialidad para {{nombre_lugar}} — precios mayoristas
 
 ---
