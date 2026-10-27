@@ -359,6 +359,16 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
         )
     """
 
+    # Leads que ya nos escribieron (el contestador registró su mensaje). Es la
+    # tercera red: aunque el estado haya quedado viejo, a quien escribió no se le
+    # manda un follow-up como si no hubiera contestado.
+    NO_NOS_ESCRIBIO = """
+        AND NOT EXISTS (
+            SELECT 1 FROM respuestas_auto ra
+            WHERE ra.lead_id::text = l.id::text AND ra.accion <> 'ignorado'
+        )
+    """
+
     if email_num == 1:
         cur.execute(f"""
             SELECT l.id, l.nombre_contacto, l.nombre_lugar, l.email, l.rubro, l.thread_id
@@ -379,6 +389,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
               AND l.respondio_at IS NULL
               AND l.rebote_at IS NULL
               {NO_CONTACTAR_DOMINIO}
+              {NO_NOS_ESCRIBIO}
               {NO_ENVIADO_AUN}
             ORDER BY l.email_1_at LIMIT %(limit)s
         """, {"limit": limit, "email_num": email_num})
@@ -391,6 +402,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
               AND l.respondio_at IS NULL
               AND l.rebote_at IS NULL
               {NO_CONTACTAR_DOMINIO}
+              {NO_NOS_ESCRIBIO}
               {NO_ENVIADO_AUN}
             ORDER BY l.email_2_at LIMIT %(limit)s
         """, {"limit": limit, "email_num": email_num})
@@ -403,6 +415,7 @@ def get_leads_to_contact(email_num: int, limit: int) -> list[dict]:
               AND l.respondio_at IS NULL
               AND l.rebote_at IS NULL
               {NO_CONTACTAR_DOMINIO}
+              {NO_NOS_ESCRIBIO}
               {NO_ENVIADO_AUN}
             ORDER BY l.email_1_at LIMIT %(limit)s
         """, {"limit": limit, "email_num": email_num})

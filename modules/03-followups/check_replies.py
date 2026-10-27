@@ -209,36 +209,43 @@ def run(days: int = DEFAULT_LOOKBACK_DAYS):
             print(f"  (no se pudo leer un mensaje: {e})")
             continue
 
-        remitente = msg.get("From", "")
-        lead_id   = None
-        via       = ""
+        # Un mensaje raro no puede frenar la revisión del resto. El 26/10/2026 un
+        # remitente con acentos cortaba el bucle entero ('Header' object has no
+        # attribute 'lower'): nadie quedaba marcado como 'respondió' y seguían
+        # recibiendo follow-ups clientes que ya habían contestado.
+        try:
+            remitente = str(msg.get("From", "") or "")
+            lead_id   = None
+            via       = ""
 
-        # Vía 1 — cabeceras del hilo
-        combined = f"{msg.get('In-Reply-To','')} {msg.get('References','')}"
-        for thread_id, lid in active.items():
-            if thread_id and thread_id in combined:
-                lead_id, via = lid, "hilo"
-                break
+            # Vía 1 — cabeceras del hilo
+            combined = f"{msg.get('In-Reply-To','') or ''} {msg.get('References','') or ''}"
+            for thread_id, lid in active.items():
+                if thread_id and thread_id in combined:
+                    lead_id, via = lid, "hilo"
+                    break
 
-        # Vía 2 — dirección del remitente (funciona aunque falten las cabeceras)
-        if not lead_id:
-            _, addr = email.utils.parseaddr(remitente)
-            lid = por_email.get(addr.lower().strip())
-            if lid:
-                lead_id, via = lid, "remitente"
+            # Vía 2 — dirección del remitente (funciona aunque falten las cabeceras)
+            if not lead_id:
+                _, addr = email.utils.parseaddr(remitente)
+                lid = por_email.get(addr.lower().strip())
+                if lid:
+                    lead_id, via = lid, "remitente"
 
-        if lead_id and lead_id not in ya_marcados:
-            fecha  = msg.get("Date", "")
-            asunto = msg.get("Subject", "")
-            if es_rebote(remitente, asunto):
-                print(f"  ✗ REBOTE — email inválido, se descarta el lead")
-                mark_bounced(lead_id, fecha_del_mensaje(msg), asunto_legible(asunto))
-                bounced += 1
-            else:
-                print(f"  ✓ Respuesta de {remitente[:45]} ({via}) — {fecha[:31]}")
-                mark_replied(lead_id)
-                replied += 1
-            ya_marcados.add(lead_id)
+            if lead_id and lead_id not in ya_marcados:
+                fecha  = str(msg.get("Date", "") or "")
+                asunto = str(msg.get("Subject", "") or "")
+                if es_rebote(remitente, asunto):
+                    print(f"  ✗ REBOTE — email inválido, se descarta el lead")
+                    mark_bounced(lead_id, fecha_del_mensaje(msg), asunto_legible(asunto))
+                    bounced += 1
+                else:
+                    print(f"  ✓ Respuesta de {remitente[:45]} ({via}) — {fecha[:31]}")
+                    mark_replied(lead_id)
+                    replied += 1
+                ya_marcados.add(lead_id)
+        except Exception as e:
+            print(f"  (mensaje salteado por error: {e})")
 
     mail.logout()
     print(f"\n✅ {replied} respuestas reales · {bounced} rebotes descartados.")

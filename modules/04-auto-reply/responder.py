@@ -59,6 +59,21 @@ def _cargar_alertas():
     return mod
 
 
+def _marcar_respondio(lead_id: str):
+    """
+    Quien nos escribe ya respondió: sale de la secuencia de follow-ups.
+
+    Lo hace check_replies, pero si esa revisión falla (el 26/10/2026 un error la
+    cortaba entera) el lead seguía recibiendo el email 3 aunque ya hubiera
+    contestado. Como este paso lee los mismos mensajes, lo marca también.
+    """
+    ruta = os.path.join(os.path.dirname(__file__), "../03-followups/check_replies.py")
+    spec = importlib.util.spec_from_file_location("_cr", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.mark_replied(lead_id)
+
+
 def db_conn():
     return psycopg2.connect(
         host=os.environ["SUPABASE_DB_HOST"],
@@ -623,6 +638,12 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS, solo_de: str | None = Non
 
         if ya_procesado(msg_id):
             continue
+
+        if not dry_run:
+            try:
+                _marcar_respondio(lead_id)
+            except Exception as e:
+                print(f"    (no se pudo marcar como respondido: {e})")
 
         consulta = texto_plano(msg)
         if len(consulta) < 5:
