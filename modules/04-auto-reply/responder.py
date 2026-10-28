@@ -614,112 +614,118 @@ def run(dry_run: bool = False, dias: int = DIAS_ATRAS, solo_de: str | None = Non
         except Exception:
             continue
 
-        msg_id = msg.get("Message-ID", "")
-        de_crudo = msg.get("From", "")
-        _, de = parseaddr(de_crudo)
-        asunto = msg.get("Subject", "") or "(sin asunto)"
-        if not msg_id or not de:
-            continue
-
-        if solo_de and de.lower() != solo_de.lower():
-            continue
-
-        # Solo se contesta a gente a la que nosotros escribimos
-        lead = conocidos.get(de.lower())
-        if not lead:
-            continue
-        lead_id, empresa, rubro = lead["id"], lead["nombre_lugar"], lead["rubro"]
-
-        motivo_ignorar = hay_que_ignorar(de_crudo, asunto)
-        if motivo_ignorar:
-            if not dry_run and not ya_procesado(msg_id):
-                registrar(msg_id, lead_id, de, asunto, "ignorado", motivo_ignorar)
-            continue
-
-        if ya_procesado(msg_id):
-            continue
-
-        if not dry_run:
-            try:
-                _marcar_respondio(lead_id)
-            except Exception as e:
-                print(f"    (no se pudo marcar como respondido: {e})")
-
-        consulta = texto_plano(msg)
-        if len(consulta) < 5:
-            continue
-
-        demora = dias_de_demora(msg)
-        etiqueta = f"  ({demora} días sin responder)" if demora >= 7 else ""
-        print(f"\n  → {empresa or de} <{de}>{etiqueta}")
-        print(f"    {consulta[:110].replace(chr(10), ' ')}...")
-
         try:
-            d = decidir(consulta, de, empresa, contexto, rubro,
-                        dias_de_demora(msg))
-        except SinCredito as e:
-            # Sin crédito no se puede responder ninguna: se corta y se avisa.
-            print("    ✗ Sin crédito de Claude — se detienen las respuestas")
-            _cargar_alertas().sin_credito_claude(str(e))
-            break
-        except Exception as e:
-            d = {"accion": "escalar", "motivo": f"error al consultar el modelo: {e}"}
+            # Los encabezados con acentos llegan como objetos Header, no como texto:
+            # hay que pasarlos a str o el .lower() corta toda la corrida.
+            msg_id = str(msg.get("Message-ID", "") or "")
+            de_crudo = str(msg.get("From", "") or "")
+            _, de = parseaddr(de_crudo)
+            asunto = str(msg.get("Subject", "") or "") or "(sin asunto)"
+            if not msg_id or not de:
+                continue
 
-        if d.get("accion") == "derivar":
-            direccion = (d.get("email") or "").strip()
-            nombre_nuevo = (d.get("nombre") or "").strip() or None
-            print(f"    ↪ nos pasan otro contacto: {direccion or '(vacío)'}")
-            conn = db_conn()
-            try:
-                ok, detalle = _derivaciones().derivar(conn, direccion, nombre_nuevo, lead, dry_run)
-            finally:
-                conn.close()
-            print(f"      {'✓' if ok else '✗'} {detalle}")
-            if ok and not dry_run:
-                # Y se le contesta a quien nos pasó el dato, en el mismo hilo.
-                gracias = d.get("respuesta") or (
-                    f"Gracias, {(lead.get('nombre_contacto') or '').split(' ')[0]}. Le escribo ahora mismo.\n\n"
-                    "Nicolás · Clout Café\nwa.me/5491163729303")
-                enviar(de, asunto, gracias, msg_id, msg.get("References", ""))
-                registrar(msg_id, lead_id, de, asunto, "derivado", detalle, gracias)
-                marcar_en_gmail(m, num, respondido=True)
-                derivadas.append({"de": de, "empresa": empresa, "contacto": direccion,
-                                  "consulta": consulta, "detalle": detalle})
-                respondidos += 1
-            elif not ok and not dry_run:
-                # Si no se pudo derivar, no se pierde: lo mira una persona.
-                motivo = f"nos pasaron un contacto y no se pudo derivar: {detalle}"
-                borrador = redactar_borrador(consulta, de, empresa, contexto, rubro)
-                avisar(de, empresa, asunto, consulta, motivo, borrador)
-                registrar(msg_id, lead_id, de, asunto, "escalado", motivo)
-                marcar_en_gmail(m, num, respondido=False)
-                escalados += 1
-            elif dry_run:
-                respondidos += 1
+            if solo_de and de.lower() != solo_de.lower():
+                continue
 
-        elif d.get("accion") == "responder":
-            print(f"    ✓ responde: {d['respuesta'][:90].replace(chr(10),' ')}...")
-            if dry_run:
-                respondidos += 1
-            elif enviar(de, asunto, d["respuesta"], msg_id,
-                        msg.get("References", "")):
-                registrar(msg_id, lead_id, de, asunto, "respondido",
-                          respuesta=d["respuesta"])
-                respondidos += 1
-                marcar_en_gmail(m, num, respondido=True)
-                enviadas.append({"de": de, "empresa": empresa,
-                                 "consulta": consulta, "respuesta": d["respuesta"]})
-        else:
-            motivo = d.get("motivo", "sin motivo")
-            print(f"    ⚠️  escala: {motivo}")
+            # Solo se contesta a gente a la que nosotros escribimos
+            lead = conocidos.get(de.lower())
+            if not lead:
+                continue
+            lead_id, empresa, rubro = lead["id"], lead["nombre_lugar"], lead["rubro"]
+
+            motivo_ignorar = hay_que_ignorar(de_crudo, asunto)
+            if motivo_ignorar:
+                if not dry_run and not ya_procesado(msg_id):
+                    registrar(msg_id, lead_id, de, asunto, "ignorado", motivo_ignorar)
+                continue
+
+            if ya_procesado(msg_id):
+                continue
+
             if not dry_run:
-                borrador = redactar_borrador(consulta, de, empresa, contexto, rubro)
-                avisar(de, empresa, asunto, consulta, motivo, borrador)
-                registrar(msg_id, lead_id, de, asunto, "escalado", motivo)
-                # Las escaladas quedan SIN leer a propósito: las tiene que
-                # contestar una persona, así que deben seguir pendientes.
-                marcar_en_gmail(m, num, respondido=False)
-            escalados += 1
+                try:
+                    _marcar_respondio(lead_id)
+                except Exception as e:
+                    print(f"    (no se pudo marcar como respondido: {e})")
+
+            consulta = texto_plano(msg)
+            if len(consulta) < 5:
+                continue
+
+            demora = dias_de_demora(msg)
+            etiqueta = f"  ({demora} días sin responder)" if demora >= 7 else ""
+            print(f"\n  → {empresa or de} <{de}>{etiqueta}")
+            print(f"    {consulta[:110].replace(chr(10), ' ')}...")
+
+            try:
+                d = decidir(consulta, de, empresa, contexto, rubro,
+                            dias_de_demora(msg))
+            except SinCredito as e:
+                # Sin crédito no se puede responder ninguna: se corta y se avisa.
+                print("    ✗ Sin crédito de Claude — se detienen las respuestas")
+                _cargar_alertas().sin_credito_claude(str(e))
+                break
+            except Exception as e:
+                d = {"accion": "escalar", "motivo": f"error al consultar el modelo: {e}"}
+
+            if d.get("accion") == "derivar":
+                direccion = (d.get("email") or "").strip()
+                nombre_nuevo = (d.get("nombre") or "").strip() or None
+                print(f"    ↪ nos pasan otro contacto: {direccion or '(vacío)'}")
+                conn = db_conn()
+                try:
+                    ok, detalle = _derivaciones().derivar(conn, direccion, nombre_nuevo, lead, dry_run)
+                finally:
+                    conn.close()
+                print(f"      {'✓' if ok else '✗'} {detalle}")
+                if ok and not dry_run:
+                    # Y se le contesta a quien nos pasó el dato, en el mismo hilo.
+                    gracias = d.get("respuesta") or (
+                        f"Gracias, {(lead.get('nombre_contacto') or '').split(' ')[0]}. Le escribo ahora mismo.\n\n"
+                        "Nicolás · Clout Café\nwa.me/5491163729303")
+                    enviar(de, asunto, gracias, msg_id, str(msg.get("References", "") or ""))
+                    registrar(msg_id, lead_id, de, asunto, "derivado", detalle, gracias)
+                    marcar_en_gmail(m, num, respondido=True)
+                    derivadas.append({"de": de, "empresa": empresa, "contacto": direccion,
+                                      "consulta": consulta, "detalle": detalle})
+                    respondidos += 1
+                elif not ok and not dry_run:
+                    # Si no se pudo derivar, no se pierde: lo mira una persona.
+                    motivo = f"nos pasaron un contacto y no se pudo derivar: {detalle}"
+                    borrador = redactar_borrador(consulta, de, empresa, contexto, rubro)
+                    avisar(de, empresa, asunto, consulta, motivo, borrador)
+                    registrar(msg_id, lead_id, de, asunto, "escalado", motivo)
+                    marcar_en_gmail(m, num, respondido=False)
+                    escalados += 1
+                elif dry_run:
+                    respondidos += 1
+
+            elif d.get("accion") == "responder":
+                print(f"    ✓ responde: {d['respuesta'][:90].replace(chr(10),' ')}...")
+                if dry_run:
+                    respondidos += 1
+                elif enviar(de, asunto, d["respuesta"], msg_id,
+                            str(msg.get("References", "") or "")):
+                    registrar(msg_id, lead_id, de, asunto, "respondido",
+                              respuesta=d["respuesta"])
+                    respondidos += 1
+                    marcar_en_gmail(m, num, respondido=True)
+                    enviadas.append({"de": de, "empresa": empresa,
+                                     "consulta": consulta, "respuesta": d["respuesta"]})
+            else:
+                motivo = d.get("motivo", "sin motivo")
+                print(f"    ⚠️  escala: {motivo}")
+                if not dry_run:
+                    borrador = redactar_borrador(consulta, de, empresa, contexto, rubro)
+                    avisar(de, empresa, asunto, consulta, motivo, borrador)
+                    registrar(msg_id, lead_id, de, asunto, "escalado", motivo)
+                    # Las escaladas quedan SIN leer a propósito: las tiene que
+                    # contestar una persona, así que deben seguir pendientes.
+                    marcar_en_gmail(m, num, respondido=False)
+                escalados += 1
+        except Exception as e:
+            # Un mensaje raro no puede dejar sin contestar al resto de la bandeja.
+            print(f"    ✗ no se pudo procesar un mensaje ({e}); sigo con el resto")
 
     m.logout()
     if not dry_run:
